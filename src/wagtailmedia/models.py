@@ -161,6 +161,23 @@ class Media(AbstractMedia):
     pass
 
 
+class MediaRendition(models.Model):
+    media = models.ForeignKey(
+        wagtailmedia_settings.MEDIA_MODEL,
+        on_delete=models.CASCADE,
+        related_name="renditions",
+    )
+
+    format_spec = models.JSONField()
+    file = models.FileField(upload_to="media", verbose_name=_("file"))
+
+    created_at = models.DateTimeField(verbose_name=_("created at"), auto_now_add=True)
+
+    @property
+    def url(self):
+        return self.file.url
+
+
 def get_media_model():
     from django.apps import apps
 
