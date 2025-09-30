@@ -172,14 +172,6 @@ class MediaRendition(models.Model):
     file = models.FileField(upload_to="media", verbose_name=_("file"))
 
     created_at = models.DateTimeField(verbose_name=_("created at"), auto_now_add=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        verbose_name=_("created by"),
-        null=True,
-        blank=True,
-        editable=False,
-        on_delete=models.SET_NULL,
-    )
 
     @property
     def url(self):
