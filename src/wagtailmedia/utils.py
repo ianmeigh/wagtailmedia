@@ -56,10 +56,13 @@ def format_video_html(item: AbstractMedia) -> str:
 
 def get_transcoding_backend_path_from_settings() -> str | None:
     from wagtailmedia.settings import wagtailmedia_settings
+
     return getattr(wagtailmedia_settings, "TRANSCODING_BACKEND", None)
 
 
-def import_transcoding_backend_class(backend_path: str | None) -> type[AbstractTranscodingBackend] | None:
+def import_transcoding_backend_class(
+    backend_path: str | None,
+) -> type[AbstractTranscodingBackend] | None:
     if not backend_path:
         return None
     try:
@@ -67,7 +70,9 @@ def import_transcoding_backend_class(backend_path: str | None) -> type[AbstractT
         module = importlib.import_module(module_path)
         return getattr(module, class_name)
     except (ModuleNotFoundError, AttributeError) as err:
-        raise RuntimeError(f"Failed to import transcoding backend '{backend_path}': {err}") from err
+        raise RuntimeError(
+            f"Failed to import transcoding backend '{backend_path}': {err}"
+        ) from err
 
 
 def get_media_transcoding_backend() -> type[AbstractTranscodingBackend] | None:
