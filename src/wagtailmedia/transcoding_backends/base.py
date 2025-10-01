@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class BaseTranscodingBackend(ABC):
+class AbstractTranscodingBackend(ABC):
     @abstractmethod
     def start_transcode(self, media_file, target_format):
         pass
