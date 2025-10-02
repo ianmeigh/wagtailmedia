@@ -4,6 +4,8 @@ import django.db.models.deletion
 
 from django.db import migrations, models
 
+from wagtailmedia.settings import wagtailmedia_settings
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -34,7 +36,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
                         related_name="renditions",
-                        to="wagtailmedia.media",
+                        to=wagtailmedia_settings.MEDIA_MODEL,
                     ),
                 ),
             ],
