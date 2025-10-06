@@ -3,7 +3,7 @@
 
 ## Host Application Settings
 
-The following settings should be added to you host applications settings file and then supplied using environment variables.
+The following settings should be added to you host applications settings file and then supplied using environment variables. The user associated to the access key provided should be used to set the permissions detailed in the remainder of this guide.
 
 ```python
 AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
