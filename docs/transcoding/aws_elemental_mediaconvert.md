@@ -11,7 +11,7 @@ pip install wagtailmedia[boto3]
 
 ## Host Application Settings
 
-You can use a number of methods to specify [credentials for boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html). We suggest you stick with environment variables. To do that, you can to set the following variables:
+You can use a number of methods to specify [credentials for boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html). We suggest you stick with environment variables. To do that, you can set the following variables:
 
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
