@@ -155,7 +155,7 @@ If you use the provided management command to automate some of the AWS resource 
 }
 ```
 
-These permissions are just required to run the setup management command and should be removed afterwards.
+These permissions are just required to run the setup management command and can be removed afterwards.
 
 ---
 
