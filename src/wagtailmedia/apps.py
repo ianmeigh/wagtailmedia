@@ -33,8 +33,7 @@ class WagtailMediaAppConfig(AppConfig):
         # Check for a transcoding backend in wagtailmedia settings
         backend_cls = get_media_transcoding_backend()
 
-        # Debugging
         if backend_cls is None:
-            logger.info("No transcoding backend specified.")
+            logger.debug("No transcoding backend specified.")
         else:
-            logger.info(f"Using transcoding backend: {backend_cls.__name__}")
+            logger.debug(f"Using transcoding backend: {backend_cls.__name__}")
