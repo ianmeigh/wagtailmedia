@@ -1,6 +1,14 @@
 
 # AWS Elemental MediaConvert Transcoding Backend
 
+## Installation
+
+This backend is based on the boto3 library which must be installed in your host project; the minimum required version is 1.40.43 although we always recommend using the most recent release. Either add it to your host projects requirements or use the optional `boto3` extra e.g:
+
+```bash
+pip install wagtailmedia[boto3]
+```
+
 ## Host Application Settings
 
 You can use a number of methods to specify [credentials for boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html). We suggest you stick with environment variables. To do that, you can to set the following variables:
