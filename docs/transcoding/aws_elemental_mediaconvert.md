@@ -28,7 +28,7 @@ This guide explains how to configure AWS IAM roles and policies for secure, auto
 
 - An AWS account with permissions to create IAM roles, policies, and MediaConvert jobs
 - Access to the AWS Console or CLI
-- An S3 bucket for input/output media (e.g., `transcode-media`)
+- An S3 bucket for input/output media
 
 ---
 
@@ -49,7 +49,7 @@ MediaConvert requires a service role with permissions to read from and write to 
             "s3:List*"
           ],
           "Resource": [
-            "arn:aws:s3:::transcode-media/*"
+            "arn:aws:s3:::YOUR_BUCKET_NAME/*"
           ]
         },
         {
@@ -58,7 +58,7 @@ MediaConvert requires a service role with permissions to read from and write to 
             "s3:Put*"
           ],
           "Resource": [
-            "arn:aws:s3:::transcode-media/*"
+            "arn:aws:s3:::YOUR_BUCKET_NAME/*"
           ]
         }
       ]
@@ -101,7 +101,7 @@ These permissions are required for the IAM user, group, or role that will submit
       "Sid": "AllowPassMediaConvertRoleToService",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::182186043439:role/service-role/MediaConvert_Default_Role",
+      "Resource": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role",
       "Condition": {
         "StringEquals": {
           "iam:PassedToService": "mediaconvert.amazonaws.com"
@@ -115,7 +115,7 @@ These permissions are required for the IAM user, group, or role that will submit
         "mediaconvert:GetQueue",
         "mediaconvert:CreateJob"
       ],
-      "Resource": "arn:aws:mediaconvert:eu-west-2:182186043439:queues/Default"
+      "Resource": "arn:aws:mediaconvert:YOUR_AWS_REGION:YOUR_AWS_ACCOUNT_ID:queues/Default"
     }
   ]
 }
@@ -161,6 +161,6 @@ These permissions are just required to run the setup management command and can 
 
 ## 4. Additional Notes
 
-- Always use the full S3 ARN (e.g., `arn:aws:s3:::transcode-media/*`) in policies, not S3 URLs.
+- Always use the full S3 ARN (e.g., `arn:aws:s3:::YOUR_BUCKET_NAME/*`) in policies, not S3 URLs.
 - The `iam:PassRole` permission is required for the user or automation that submits jobs to MediaConvert.
 - The MediaConvert service role must have a trust policy allowing `mediaconvert.amazonaws.com` to assume it.
