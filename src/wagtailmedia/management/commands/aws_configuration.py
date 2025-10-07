@@ -26,16 +26,6 @@ class Command(BaseCommand):
                 "boto3 is required for AWS setup. Please install it via pip."
             ) from err
 
-        # Check AWS environment variables set
-        if not all(
-            [
-                hasattr(settings, "AWS_ACCESS_KEY_ID"),
-                hasattr(settings, "AWS_SECRET_ACCESS_KEY"),
-                hasattr(settings, "AWS_DEFAULT_REGION"),
-            ]
-        ):
-            raise CommandError("AWS credentials are not set in Django settings.")
-
         # Check AWS custom settings or use defaults
         self.sqs_queue_name = (
             getattr(settings, "AWS_SQS_QUEUE_NAME", None) or "mediaconvert-messages"
@@ -50,8 +40,10 @@ class Command(BaseCommand):
         """Create a boto3 client for the specified AWS service."""
         try:
             client = self.boto3.client(service_identifier)
-        except self.botocore_exceptions.NoCredentialsError as err:
-            raise CommandError("Invalid AWS credentials.") from err
+        except self.botocore_exceptions.PartialCredentialsError as err:
+            raise CommandError(err) from err
+        except self.botocore_exceptions.NoRegionError as err:
+            raise CommandError("AWS region not specified.") from err
         return client
 
     def get_or_create_sqs_queue(
@@ -80,12 +72,16 @@ class Command(BaseCommand):
             queue_url = sqs_client.create_queue(QueueName=name, Attributes=attributes)[
                 "QueueUrl"
             ]
+        except self.botocore_exceptions.NoCredentialsError as err:
+            raise CommandError("AWS credentials not found.") from err
         except sqs_client.exceptions.QueueDeletedRecently as err:
             raise CommandError(
                 "Queue was recently deleted. Please try again after in one minute."
             ) from err
         except sqs_client.exceptions.QueueNameExists:
             queue_url = sqs_client.get_queue_url(QueueName=name)["QueueUrl"]
+        except self.botocore_exceptions.ClientError as err:
+            raise CommandError(err) from err
 
         attrs = sqs_client.get_queue_attributes(
             QueueUrl=queue_url, AttributeNames=["QueueArn"]
