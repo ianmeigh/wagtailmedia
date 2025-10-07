@@ -178,6 +178,35 @@ class MediaRendition(models.Model):
         return self.file.url
 
 
+class MediaTranscodingJob(models.Model):
+    media = models.ForeignKey(
+        wagtailmedia_settings.MEDIA_MODEL,
+        on_delete=models.CASCADE,
+    )
+    rendition = models.ForeignKey(
+        wagtailmedia_settings.MEDIA_RENDITION_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "Pending"),
+            ("processing", "Processing"),
+            ("completed", "Completed"),
+            ("failed", "Failed"),
+        ],
+        default="pending",
+    )
+    backend = models.CharField(max_length=255)
+    job_id = models.CharField(max_length=255, unique=True)
+    format_spec = models.JSONField()
+    metadata = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
 def get_media_model():
     from django.apps import apps
 
