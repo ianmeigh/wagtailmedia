@@ -71,7 +71,7 @@ MediaConvert requires a service role with permissions to read from and write to 
     - Proceed with defaults
     - Name the role (e.g., `MediaConvert_Default_Role`)
     - Edit the role and remove the default policies
-    - Attach the `MediaConvert_Default_Role_Policy` you created above
+    - Attach the MediaConvert IAM policy you created in step 1
     - The Trusted entities (under the Trust relationships tab) should be as below:
 
       ```json
