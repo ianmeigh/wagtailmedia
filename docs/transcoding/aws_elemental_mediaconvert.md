@@ -75,7 +75,7 @@ MediaConvert requires a service role with permissions to read from and write to 
     - In the AWS Console, go to IAM > Roles > Create role
     - Select **AWS service** and choose **MediaConvert**
     - Proceed with defaults
-    - Name the role (e.g., `MediaConvert_Default_Role`)
+    - Name the role (it is strongly recommended to use the name `MediaConvert_Default_Role`)
     - Edit the role and remove the default policies
     - Attach the MediaConvert IAM policy you created in step 1
     - The Trusted entities (under the Trust relationships tab) should be as below:
