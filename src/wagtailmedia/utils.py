@@ -8,6 +8,8 @@ from django.forms.utils import flatatt
 from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
 
+from wagtailmedia.settings import wagtailmedia_settings
+
 
 try:
     from wagtail.admin.paginator import WagtailPaginator as Paginator
@@ -55,8 +57,6 @@ def format_video_html(item: AbstractMedia) -> str:
 
 
 def get_transcoding_backend_path_from_settings() -> str | None:
-    from wagtailmedia.settings import wagtailmedia_settings
-
     return getattr(wagtailmedia_settings, "TRANSCODING_BACKEND", None)
 
 
