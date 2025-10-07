@@ -56,10 +56,6 @@ def format_video_html(item: AbstractMedia) -> str:
     )
 
 
-def get_transcoding_backend_path_from_settings() -> str | None:
-    return getattr(wagtailmedia_settings, "TRANSCODING_BACKEND", None)
-
-
 def import_transcoding_backend_class(
     backend_path: str | None,
 ) -> type[AbstractTranscodingBackend] | None:
@@ -76,5 +72,5 @@ def import_transcoding_backend_class(
 
 
 def get_media_transcoding_backend() -> type[AbstractTranscodingBackend] | None:
-    backend_path = get_transcoding_backend_path_from_settings()
+    backend_path = getattr(wagtailmedia_settings, "TRANSCODING_BACKEND", None)
     return import_transcoding_backend_class(backend_path)
