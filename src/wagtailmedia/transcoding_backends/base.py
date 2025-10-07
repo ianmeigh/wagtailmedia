@@ -7,5 +7,5 @@ class AbstractTranscodingBackend(ABC):
         pass
 
     @abstractmethod
-    def stop_transcode():
+    def stop_transcode(self, task_id):
         pass
