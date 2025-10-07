@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 
@@ -79,7 +80,7 @@ class TranscodingBackendImportTest(TestCase):
             "wagtailmedia.utils.importlib.import_module",
             side_effect=ModuleNotFoundError(),
         ):
-            with self.assertRaises(RuntimeError) as excinfo:
+            with self.assertRaises(ImproperlyConfigured) as excinfo:
                 get_media_transcoding_backend()
             self.assertIn(
                 "Failed to import transcoding backend", str(excinfo.exception)
