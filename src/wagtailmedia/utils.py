@@ -67,12 +67,8 @@ def import_transcoding_backend_class(
         module = importlib.import_module(module_path)
         return getattr(module, class_name)
     except (ModuleNotFoundError, AttributeError) as err:
-        raise RuntimeError(
+        raise ImproperlyConfigured(
             f"Failed to import transcoding backend '{backend_path}': {err}"
-        ) from err
-    except ImproperlyConfigured as err:
-        raise RuntimeError(
-            f"Improperly configured transcoding backend '{backend_path}': {err}"
         ) from err
 
 
