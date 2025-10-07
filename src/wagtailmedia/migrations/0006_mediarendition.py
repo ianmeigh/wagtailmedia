@@ -10,6 +10,7 @@ from wagtailmedia.settings import wagtailmedia_settings
 class Migration(migrations.Migration):
     dependencies = [
         ("wagtailmedia", "0005_alter_media_options"),
+        migrations.swappable_dependency(wagtailmedia_settings.MEDIA_MODEL),
     ]
 
     operations = [

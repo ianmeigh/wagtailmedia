@@ -10,6 +10,8 @@ from wagtailmedia.settings import wagtailmedia_settings
 class Migration(migrations.Migration):
     dependencies = [
         ("wagtailmedia", "0006_mediarendition"),
+        migrations.swappable_dependency(wagtailmedia_settings.MEDIA_MODEL),
+        migrations.swappable_dependency(wagtailmedia_settings.MEDIA_RENDITION_MODEL),
     ]
 
     operations = [
