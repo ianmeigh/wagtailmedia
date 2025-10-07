@@ -31,6 +31,7 @@ DEFAULTS = {
         "ogv",
         "webm",
     ],
+    "TRANSCODING_BACKEND": "",
 }
 
 # List of settings that have been deprecated

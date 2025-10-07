@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import importlib
+
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import ImproperlyConfigured
 from django.forms.utils import flatatt
 from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
+
+from wagtailmedia.settings import wagtailmedia_settings
 
 
 try:
@@ -16,6 +21,8 @@ except ImportError:
 if TYPE_CHECKING:
     from django.core.paginator import Page as PaginatorPage
     from django.http import HttpRequest
+
+    from wagtailmedia.transcoding_backends.base import AbstractTranscodingBackend
 
     from .models import AbstractMedia
 
@@ -48,3 +55,23 @@ def format_video_html(item: AbstractMedia) -> str:
         ),
         fallback=_("Your browser does not support the video element."),
     )
+
+
+def import_transcoding_backend_class(
+    backend_path: str | None,
+) -> type[AbstractTranscodingBackend] | None:
+    if not backend_path:
+        return None
+    try:
+        module_path, class_name = backend_path.rsplit(".", 1)
+        module = importlib.import_module(module_path)
+        return getattr(module, class_name)
+    except (ModuleNotFoundError, AttributeError) as err:
+        raise ImproperlyConfigured(
+            f"Failed to import transcoding backend '{backend_path}': {err}"
+        ) from err
+
+
+def get_media_transcoding_backend() -> type[AbstractTranscodingBackend] | None:
+    backend_path = getattr(wagtailmedia_settings, "TRANSCODING_BACKEND", None)
+    return import_transcoding_backend_class(backend_path)
