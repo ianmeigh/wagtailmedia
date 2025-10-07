@@ -21,7 +21,7 @@ class Command(BaseCommand):
 
             self.boto3 = boto3
             self.botocore_exceptions = botocore_exceptions
-        except CommandError as err:
+        except ImportError as err:
             raise CommandError(
                 "boto3 is required for AWS setup. Please install it via pip."
             ) from err
