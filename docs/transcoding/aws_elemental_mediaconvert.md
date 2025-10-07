@@ -17,7 +17,7 @@ You can use a number of methods to specify [credentials for boto3](https://boto3
 - AWS_SECRET_ACCESS_KEY
 - AWS_DEFAULT_REGION
 
-Optionally you can provide custom names for the Simple Queue Services queue and EventBridge rule. The following code allows configuration via environment variables.
+Optionally you can provide custom names for the Simple Queue Services queue and EventBridge rule, via Django settings. The following code allows configuration via environment variables.
 
 ```python
 AWS_SQS_QUEUE_NAME = os.environ.get("AWS_SQS_QUEUE_NAME", "")  # default: "mediaconvert-messages"
