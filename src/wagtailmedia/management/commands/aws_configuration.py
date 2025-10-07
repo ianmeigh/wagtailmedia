@@ -150,6 +150,12 @@ class Command(BaseCommand):
         self.stdout.write(f"EventBridge rule ARN: {rule_arn}")
 
         # Add the queue as a target to the rule, otherwise events won't flow.
+        #
+        # The target ID is a user-defined string used to identify a specific target
+        # within a rule. It is hard-coded here as we won't need to manage the target
+        # dynamically. The ID must be unique for each target in the rule, so if you
+        # encounter an error related to target uniqueness, try changing this ID.
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/events/client/put_targets.html
         self.stdout.write("Adding SQS queue as target to EventBridge rule...")
         events_client.put_targets(
             Rule=self.eventbridge_rule_name,
