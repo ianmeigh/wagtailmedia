@@ -4,6 +4,7 @@ import importlib
 
 from typing import TYPE_CHECKING
 
+from django.core.exceptions import ImproperlyConfigured
 from django.forms.utils import flatatt
 from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
@@ -68,6 +69,10 @@ def import_transcoding_backend_class(
     except (ModuleNotFoundError, AttributeError) as err:
         raise RuntimeError(
             f"Failed to import transcoding backend '{backend_path}': {err}"
+        ) from err
+    except ImproperlyConfigured as err:
+        raise RuntimeError(
+            f"Improperly configured transcoding backend '{backend_path}': {err}"
         ) from err
 
 
