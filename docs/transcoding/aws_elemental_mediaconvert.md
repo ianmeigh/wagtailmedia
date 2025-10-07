@@ -3,19 +3,17 @@
 
 ## Host Application Settings
 
-The following settings should be added to you host applications settings file and then supplied using environment variables. The user associated to the access key provided should be used to set the permissions detailed in the remainder of this guide.
+You can use a number of methods to specify [credentials for boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html). We suggest you stick with environment variables. To do that, you can to set the following variables:
+
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_DEFAULT_REGION
+
+Optionally you can provide custom names for the Simple Queue Services queue and EventBridge rule. The following code allows configuration via environment variables.
 
 ```python
-AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
-AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
-AWS_DEFAULT_REGION = os.environ.get("AWS_DEFAULT_REGION", "")
-```
-
-Optionally you can provide custom names for the Simple Queue Services queue EventBridge rule.
-
-```python
-AWS_SQS_QUEUE_NAME = os.environ.get("AWS_SQS_QUEUE_NAME", "")
-AWS_EVENTBRIDGE_RULE_NAME = os.environ.get("AWS_EVENTBRIDGE_RULE_NAME", "")
+AWS_SQS_QUEUE_NAME = os.environ.get("AWS_SQS_QUEUE_NAME", "")  # default: "mediaconvert-messages"
+AWS_EVENTBRIDGE_RULE_NAME = os.environ.get("AWS_EVENTBRIDGE_RULE_NAME", "")  # default: "mediaconvert-job-events"
 ```
 
 ## AWS Permissions (Partially) Automated Setup
