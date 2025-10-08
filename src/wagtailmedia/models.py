@@ -24,6 +24,13 @@ class MediaType(models.TextChoices):
     VIDEO = "video", _("Video file")
 
 
+class TranscodingJobStatus(models.TextChoices):
+    PENDING = "pending", _("Pending")
+    PROCESSING = "processing", _("Processing")
+    COMPLETED = "completed", _("Completed")
+    FAILED = "failed", _("Failed")
+
+
 class MediaQuerySet(SearchableQuerySetMixin, models.QuerySet):
     pass
 
@@ -190,17 +197,13 @@ class MediaTranscodingJob(models.Model):
         blank=True,
     )
     status = models.CharField(
-        max_length=20,
-        choices=[
-            ("pending", "Pending"),
-            ("processing", "Processing"),
-            ("completed", "Completed"),
-            ("failed", "Failed"),
-        ],
-        default="pending",
+        max_length=255,
+        choices=TranscodingJobStatus.choices,
+        default=TranscodingJobStatus.PENDING,
     )
+
     backend = models.CharField(max_length=255)
-    job_id = models.CharField(max_length=255, unique=True)
+    job_id = models.CharField(max_length=255, unique=True, db_index=True)
     format_spec = models.JSONField()
     metadata = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
