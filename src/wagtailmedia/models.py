@@ -203,7 +203,7 @@ class MediaTranscodingJob(models.Model):
     )
 
     backend = models.CharField(max_length=255)
-    job_id = models.CharField(max_length=255, unique=True, db_index=True)
+    job_id = models.CharField(max_length=255, unique=True, db_index=True, null=True)
     format_spec = models.JSONField(null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
