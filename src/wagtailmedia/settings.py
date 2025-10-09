@@ -17,6 +17,7 @@ from django.test.signals import setting_changed
 
 DEFAULTS = {
     "MEDIA_MODEL": "wagtailmedia.Media",
+    "MEDIA_RENDITION_MODEL": "wagtailmedia.MediaRendition",
     "MEDIA_FORM_BASE": "",
     "AUDIO_EXTENSIONS": ["aac", "aiff", "flac", "m4a", "m4b", "mp3", "ogg", "wav"],
     "VIDEO_EXTENSIONS": [
