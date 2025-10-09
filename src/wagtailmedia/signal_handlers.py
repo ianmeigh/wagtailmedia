@@ -63,7 +63,6 @@ def transcode_video(instance):
                 f"Started transcode job {transcoding_job.job_id} for media {instance.id}"
             )
         except TranscodingError as err:
-            # All backend-specific errors inherit from this
             transcoding_job.status = TranscodingJobStatus.FAILED
             transcoding_job.metadata = {
                 "error_type": err.__class__.__name__,
