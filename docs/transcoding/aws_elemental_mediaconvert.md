@@ -28,15 +28,11 @@ AWS_EVENTBRIDGE_RULE_NAME = os.environ.get("AWS_EVENTBRIDGE_RULE_NAME", "")  # d
 
 This guide explains how to configure AWS IAM roles and policies for secure, automated use of AWS Elemental MediaConvert as a transcoding backend.
 
----
-
 ## Prerequisites
 
 - An AWS account with permissions to create IAM roles, policies, and MediaConvert jobs
 - Access to the AWS Console or CLI
 - An S3 bucket for input/output media
-
----
 
 ## 1. Create the MediaConvert Service Role
 
@@ -93,8 +89,6 @@ MediaConvert requires a service role with permissions to read from and write to 
       }
       ```
 
----
-
 ## 2. IAM Permissions for Normal Operation
 
 These permissions are required for the IAM user, group, or role that will submit MediaConvert jobs and query their status.
@@ -107,12 +101,18 @@ These permissions are required for the IAM user, group, or role that will submit
       "Sid": "AllowPassMediaConvertRoleToService",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role",
+      "Resource": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/MediaConvert_Default_Role",
       "Condition": {
         "StringEquals": {
           "iam:PassedToService": "mediaconvert.amazonaws.com"
         }
       }
+    },
+    {
+      "Sid": "AllowMediaRoleRetrieval",
+      "Effect": "Allow",
+      "Action": "iam:GetRole",
+      "Resource": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/MediaConvert_Default_Role"
     },
     {
       "Sid": "AllowMediaConvertJobAndQueueManagement",
@@ -122,12 +122,19 @@ These permissions are required for the IAM user, group, or role that will submit
         "mediaconvert:CreateJob"
       ],
       "Resource": "arn:aws:mediaconvert:YOUR_AWS_REGION:YOUR_AWS_ACCOUNT_ID:queues/Default"
+    },
+    {
+      "Sid": "AllowS3UploadAndDownload",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::YOUR_S3_BUCKET_NAME/*"
     }
   ]
 }
 ```
-
----
 
 ## 3. IAM Permissions for Management Command (Setup Automation)
 
@@ -162,8 +169,6 @@ If you use the provided management command to automate some of the AWS resource 
 ```
 
 These permissions are just required to run the setup management command and can be removed afterwards.
-
----
 
 ## 4. Additional Notes
 
