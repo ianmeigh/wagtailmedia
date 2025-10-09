@@ -4,14 +4,14 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
+from wagtailmedia.transcoding_backends.aws_utils import (
+    create_boto3_client,
+    import_boto3,
+)
 from wagtailmedia.transcoding_backends.base import (
     AbstractTranscodingBackend,
     TranscodingError,
 )
-
-
-boto3 = None
-botocore_exceptions = None
 
 
 class S3UploadError(TranscodingError):
@@ -24,59 +24,6 @@ class MediaConvertJobError(TranscodingError):
     """Failed to create or manage MediaConvert job."""
 
     pass
-
-
-def _ensure_boto3_installed():
-    """
-    Ensure boto3 is installed and import it.
-
-    This is called lazily when the AWS backend is first used, rather than
-    at module import time, to avoid requiring boto3 for users not using
-    the AWS backend.
-
-    Raises:
-        ImproperlyConfigured: If boto3 is not installed
-    """
-
-    global boto3, botocore_exceptions
-
-    try:
-        import boto3 as _boto3
-        import botocore.exceptions as _botocore_exceptions
-
-        boto3 = _boto3
-        botocore_exceptions = _botocore_exceptions
-    except ImportError as err:
-        raise ImproperlyConfigured(
-            "boto3 is required for AWS transcoding. Please install it via pip."
-        ) from err
-
-
-def create_boto3_client(service_name, **kwargs):
-    """
-    Central factory for boto3 clients with consistent error handling.
-
-    Args:
-        service_name: AWS service name (e.g., 's3', 'mediaconvert', 'iam')
-        **kwargs: Additional arguments passed to boto3.client (e.g., region_name, endpoint_url)
-
-    Returns:
-        boto3.client: Configured boto3 client instance
-
-    Raises:
-        ImproperlyConfigured: If AWS credentials, region, or configuration are invalid
-    """
-
-    _ensure_boto3_installed()
-
-    try:
-        return boto3.client(service_name, **kwargs)
-    except botocore_exceptions.PartialCredentialsError as err:
-        raise ImproperlyConfigured(f"Incomplete AWS credentials: {err}") from err
-    except botocore_exceptions.NoCredentialsError as err:
-        raise ImproperlyConfigured("No AWS credentials found.") from err
-    except botocore_exceptions.NoRegionError as err:
-        raise ImproperlyConfigured("AWS region not specified.") from err
 
 
 class AWSTranscodingConfig:
@@ -157,6 +104,7 @@ class S3Service:
         Raises:
             S3UploadError: If upload fails due to permissions or connectivity
         """
+        _, botocore_exceptions = import_boto3()
 
         try:
             return self.client.put_object(
@@ -333,6 +281,8 @@ class MediaConvertService:
         if self._role_arn is not None:
             return self._role_arn
 
+        _, botocore_exceptions = import_boto3()
+
         try:
             response = self.iam_client.get_role(RoleName=self.config.mediaconvert_role)
             self._role_arn = response["Role"]["Arn"]
@@ -363,6 +313,8 @@ class MediaConvertService:
             ImproperlyConfigured: If IAM role cannot be retrieved
             MediaConvertJobError: If job creation fails (invalid settings, permissions, etc.)
         """
+
+        _, botocore_exceptions = import_boto3()
 
         role_arn = self.get_role_arn()
 
