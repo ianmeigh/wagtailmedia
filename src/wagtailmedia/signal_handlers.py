@@ -1,3 +1,5 @@
+import logging
+
 from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
@@ -9,6 +11,9 @@ from wagtailmedia.models import (
 )
 from wagtailmedia.transcoding_backends.aws import TranscodingError
 from wagtailmedia.utils import get_media_transcoding_backend
+
+
+logger = logging.getLogger(__name__)
 
 
 def delete_files(instance):
@@ -30,20 +35,33 @@ def transcode_video(instance):
 
         backend = backend_cls()
 
-        transcoding_job, created = MediaTranscodingJob.objects.get_or_create(
+        # Check for existing active job
+        existing_job = MediaTranscodingJob.objects.filter(
+            media=instance,
+            status__in=[TranscodingJobStatus.PENDING, TranscodingJobStatus.PROCESSING],
+        ).first()
+
+        if existing_job:
+            logger.info(
+                f"Skipping transcode for media {instance.id} ({instance.title}): "
+                f"Job {existing_job.job_id} already {existing_job.status}"
+            )
+            return
+
+        transcoding_job = MediaTranscodingJob.objects.create(
             media=instance,
             status=TranscodingJobStatus.PENDING,
         )
-
-        if not created:
-            # Job already exists, skip transcoding
-            return
 
         try:
             response = backend.start_transcode(file)
             transcoding_job.job_id = response["Job"]["Id"]
             transcoding_job.backend = f"{backend_cls.__module__}.{backend_cls.__name__}"
             transcoding_job.save()
+
+            logger.info(
+                f"Started transcode job {transcoding_job.job_id} for media {instance.id}"
+            )
         except TranscodingError as err:
             # All backend-specific errors inherit from this
             transcoding_job.status = TranscodingJobStatus.FAILED
