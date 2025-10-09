@@ -60,6 +60,7 @@ class AWSTranscodingConfig:
         """
         value = getattr(settings, setting_name, default)
         if value is None:
+            # FIXME: Handle this in a system check rather than at runtime
             raise ImproperlyConfigured(
                 f"{setting_name} is required for AWS transcoding. "
                 f"Please add it to your Django settings."

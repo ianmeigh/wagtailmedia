@@ -45,6 +45,7 @@ def import_boto3():
         _botocore_exceptions = botocore.exceptions
         return _boto3, _botocore_exceptions
     except ImportError as err:
+        # FIXME: Handle this in a system check rather than at runtime
         raise ImproperlyConfigured(
             "boto3 is required for AWS features. "
             "Install with: pip install wagtailmedia[aws]"
