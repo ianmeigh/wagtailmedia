@@ -7,6 +7,10 @@ from django.core.exceptions import ImproperlyConfigured
 from wagtailmedia.transcoding_backends.base import AbstractTranscodingBackend
 
 
+boto3 = None
+botocore_exceptions = None
+
+
 class TranscodingError(Exception):
     """Base exception for transcoding operations."""
 
@@ -25,13 +29,30 @@ class MediaConvertJobError(TranscodingError):
     pass
 
 
-try:
-    import boto3
-    import botocore.exceptions as botocore_exceptions
-except ImportError as err:
-    raise ImproperlyConfigured(
-        "boto3 is required for AWS transcoding. Please install it via pip."
-    ) from err
+def _ensure_boto3_installed():
+    """
+    Ensure boto3 is installed and import it.
+
+    This is called lazily when the AWS backend is first used, rather than
+    at module import time, to avoid requiring boto3 for users not using
+    the AWS backend.
+
+    Raises:
+        ImproperlyConfigured: If boto3 is not installed
+    """
+
+    global boto3, botocore_exceptions
+
+    try:
+        import boto3 as _boto3
+        import botocore.exceptions as _botocore_exceptions
+
+        boto3 = _boto3
+        botocore_exceptions = _botocore_exceptions
+    except ImportError as err:
+        raise ImproperlyConfigured(
+            "boto3 is required for AWS transcoding. Please install it via pip."
+        ) from err
 
 
 def create_boto3_client(service_name, **kwargs):
@@ -48,6 +69,9 @@ def create_boto3_client(service_name, **kwargs):
     Raises:
         ImproperlyConfigured: If AWS credentials, region, or configuration are invalid
     """
+
+    _ensure_boto3_installed()
+
     try:
         return boto3.client(service_name, **kwargs)
     except botocore_exceptions.PartialCredentialsError as err:
