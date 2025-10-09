@@ -90,16 +90,14 @@ class AWSTranscodingConfig:
     transcoding operations.
 
     Required Django settings:
-        WAGTAILMEDIA_TRANSCODING_DESTINATION_BUCKET_NAME: S3 bucket for transcoded files
-        WAGTAILMEDIA_MEDIACONVERT_ROLE: IAM role name for MediaConvert (default: 'MediaConvert_Default_Role')
+        AWS_STORAGE_BUCKET_NAME: S3 bucket for transcoded files
+        AWS_MEDIACONVERT_ROLE_NAME: IAM role name for MediaConvert (default: 'MediaConvert_Default_Role')
     """
 
     def __init__(self):
-        self.destination_bucket = self._get_required_setting(
-            "WAGTAILMEDIA_TRANSCODING_DESTINATION_BUCKET_NAME"
-        )
+        self.destination_bucket = self._get_required_setting("AWS_STORAGE_BUCKET_NAME")
         self.mediaconvert_role = self._get_required_setting(
-            "WAGTAILMEDIA_MEDIACONVERT_ROLE", "MediaConvert_Default_Role"
+            "AWS_MEDIACONVERT_ROLE_NAME", "MediaConvert_Default_Role"
         )
 
     def _get_required_setting(self, setting_name: str, default=None):
@@ -393,8 +391,8 @@ class EMCTranscodingBackend(AbstractTranscodingBackend):
     4. Returns job response for tracking
 
     Configuration via Django settings:
-        - WAGTAILMEDIA_TRANSCODING_DESTINATION_BUCKET_NAME (required)
-        - WAGTAILMEDIA_MEDIACONVERT_ROLE (defaults to 'MediaConvert_Default_Role')
+        - AWS_STORAGE_BUCKET_NAME (required)
+        - AWS_MEDIACONVERT_ROLE_NAME (defaults to 'MediaConvert_Default_Role')
     """
 
     def __init__(self):

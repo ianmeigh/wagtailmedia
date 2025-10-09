@@ -20,7 +20,7 @@ You can use a number of methods to specify [credentials for boto3](https://boto3
 You must specify the name of the S3 bucket that should be used to store transcoded media using the following setting:
 
 ```python
-AWS_TRANSCODING_DESTINATION_BUCKET_NAME = os.environ.get("AWS_TRANSCODING_DESTINATION_BUCKET_NAME", "")  # S3 bucket the transcoded files are stored in
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")  # S3 bucket offline files are uploaded to and the transcoded files are stored in
 ```
 
 Optionally you can provide custom names for the Simple Queue Services queue, EventBridge rule and MediaConvert role, via Django settings. The following code allows configuration via environment variables:
@@ -28,7 +28,7 @@ Optionally you can provide custom names for the Simple Queue Services queue, Eve
 ```python
 AWS_SQS_QUEUE_NAME = os.environ.get("AWS_SQS_QUEUE_NAME", "")  # default: "mediaconvert-messages"
 AWS_EVENTBRIDGE_RULE_NAME = os.environ.get("AWS_EVENTBRIDGE_RULE_NAME", "")  # default: "mediaconvert-job-events"
-AWS_MEDIACONVERT_ROLE = os.environ.get("AWS_MEDIACONVERT_ROLE", "")  #  default: MediaConvert_Default_Role
+AWS_MEDIACONVERT_ROLE_NAME = os.environ.get("AWS_MEDIACONVERT_ROLE_NAME", "")  #  default: MediaConvert_Default_Role
 ```
 
 ## AWS Permissions (Partially) Automated Setup
@@ -78,7 +78,7 @@ MediaConvert requires a service role with permissions to read from and write to 
     - In the AWS Console, go to IAM > Roles > Create role
     - Select **AWS service** and choose **MediaConvert**
     - Proceed with defaults
-    - Name the role (it is strongly recommended to use the name `MediaConvert_Default_Role`, if you need to use a custom name, set this in the `AWS_MEDIACONVERT_ROLE` setting)
+    - Name the role (it is strongly recommended to use the name `MediaConvert_Default_Role`, if you need to use a custom name, set this in the `AWS_MEDIACONVERT_ROLE_NAME` setting)
     - Edit the role and remove the default policies
     - Attach the MediaConvert IAM policy you created in step 1
     - The Trusted entities (under the Trust relationships tab) should be as below:
