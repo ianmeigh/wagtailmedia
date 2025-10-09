@@ -4,17 +4,14 @@ from urllib.parse import urlparse
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
-from wagtailmedia.transcoding_backends.base import AbstractTranscodingBackend
+from wagtailmedia.transcoding_backends.base import (
+    AbstractTranscodingBackend,
+    TranscodingError,
+)
 
 
 boto3 = None
 botocore_exceptions = None
-
-
-class TranscodingError(Exception):
-    """Base exception for transcoding operations."""
-
-    pass
 
 
 class S3UploadError(TranscodingError):
