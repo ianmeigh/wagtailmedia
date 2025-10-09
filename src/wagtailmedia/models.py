@@ -26,8 +26,11 @@ class MediaType(models.TextChoices):
 
 class TranscodingJobStatus(models.TextChoices):
     PENDING = "pending", _("Pending")
-    PROCESSING = "processing", _("Processing")
-    COMPLETED = "completed", _("Completed")
+    SUBMITTED = "submitted", _("Submitted")
+    PROGRESSING = "progressing", _("Progressing")
+    COMPLETE = "complete", _("Complete")
+    CANCELED = "canceled", _("Canceled")
+    ERROR = "error", _("Error")
     FAILED = "failed", _("Failed")
 
 

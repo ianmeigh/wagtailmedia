@@ -38,7 +38,7 @@ def transcode_video(instance):
         # Check for existing active job
         existing_job = MediaTranscodingJob.objects.filter(
             media=instance,
-            status__in=[TranscodingJobStatus.PENDING, TranscodingJobStatus.PROCESSING],
+            status__in=[TranscodingJobStatus.PENDING, TranscodingJobStatus.PROGRESSING],
         ).first()
 
         if existing_job:
