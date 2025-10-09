@@ -138,6 +138,7 @@ class S3Service:
         Raises:
             S3UploadError: If upload fails due to permissions or connectivity
         """
+
         try:
             return self.client.put_object(
                 Body=file, Bucket=bucket_name, Key=object_name
@@ -164,6 +165,7 @@ class S3Service:
             ValueError: If source_file lacks required 'name' attribute
             S3UploadError: If upload to S3 fails
         """
+
         file_url = getattr(source_file, "url", None)
         is_domain_in_url = bool(urlparse(file_url).netloc)
 
@@ -205,6 +207,7 @@ class MediaConvertJobSettings:
         Returns:
             dict: Complete MediaConvert job settings dictionary
         """
+
         return {
             "TimecodeConfig": {"Source": "EMBEDDED"},
             "FollowSource": 1,
@@ -281,6 +284,7 @@ class MediaConvertService:
         Raises:
             ImproperlyConfigured: If AWS credentials or region are missing
         """
+
         if self._mediaconvert_client is None:
             self._mediaconvert_client = create_boto3_client("mediaconvert")
         return self._mediaconvert_client
@@ -306,6 +310,7 @@ class MediaConvertService:
         Raises:
             ImproperlyConfigured: If role cannot be found or IAM access is denied
         """
+
         if self._role_arn is not None:
             return self._role_arn
 
@@ -339,6 +344,7 @@ class MediaConvertService:
             ImproperlyConfigured: If IAM role cannot be retrieved
             MediaConvertJobError: If job creation fails (invalid settings, permissions, etc.)
         """
+
         role_arn = self.get_role_arn()
 
         try:
