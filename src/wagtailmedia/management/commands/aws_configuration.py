@@ -3,6 +3,11 @@ import json
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
+from wagtailmedia.transcoding_backends.aws_utils import (
+    create_boto3_client,
+    import_boto3,
+)
+
 
 class Command(BaseCommand):
     help = (
@@ -15,16 +20,7 @@ class Command(BaseCommand):
         super().__init__(*args, **kwargs)
 
         # Check boto3 package installed and import
-        try:
-            import boto3
-            import botocore.exceptions as botocore_exceptions
-
-            self.boto3 = boto3
-            self.botocore_exceptions = botocore_exceptions
-        except ImportError as err:
-            raise CommandError(
-                "boto3 is required for AWS setup. Please install it via pip."
-            ) from err
+        self.boto3, self.botocore_exceptions = import_boto3()
 
         # Check AWS custom settings or use defaults
         self.sqs_queue_name = (
@@ -35,16 +31,6 @@ class Command(BaseCommand):
             getattr(settings, "AWS_EVENTBRIDGE_RULE_NAME", None)
             or "mediaconvert-job-events"
         )
-
-    def create_aws_service_client(self, *, service_identifier):
-        """Create a boto3 client for the specified AWS service."""
-        try:
-            client = self.boto3.client(service_identifier)
-        except self.botocore_exceptions.PartialCredentialsError as err:
-            raise CommandError(err) from err
-        except self.botocore_exceptions.NoRegionError as err:
-            raise CommandError("AWS region not specified.") from err
-        return client
 
     def get_or_create_sqs_queue(
         self, *, sqs_client, name: str, attributes: dict | None = None
@@ -120,8 +106,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Create AWS service clients
         self.stdout.write("Creating AWS clients...")
-        sqs_client = self.create_aws_service_client(service_identifier="sqs")
-        events_client = self.create_aws_service_client(service_identifier="events")
+        sqs_client = create_boto3_client(service_name="sqs")
+        events_client = create_boto3_client(service_name="events")
 
         # Create SQS queue
         self.stdout.write(f"Creating or getting SQS queue '{self.sqs_queue_name}'...")
