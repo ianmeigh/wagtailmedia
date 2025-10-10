@@ -50,38 +50,3 @@ def import_boto3():
             "boto3 is required for AWS features. "
             "Install with: pip install wagtailmedia[aws]"
         ) from err
-
-
-def create_boto3_client(service_name, **kwargs):
-    """
-    Create a boto3 client with consistent error handling.
-
-    Factory function for creating boto3 service clients with standardized error handling
-    for common AWS credential and configuration issues.
-
-    Args:
-        service_name: AWS service name (e.g., 's3', 'mediaconvert', 'iam', 'sqs')
-        **kwargs: Additional arguments passed to boto3.client
-                 (e.g., region_name, endpoint_url, aws_access_key_id)
-
-    Returns:
-        boto3.client: Configured boto3 client instance for the specified service
-
-    Raises:
-        ImproperlyConfigured: If boto3 is not installed, credentials are invalid,
-                            or AWS region is not specified
-
-    Example:
-        - s3_client = create_boto3_client('s3', region_name='us-east-1')
-        - sqs_client = create_boto3_client('sqs', endpoint_url='http://localhost:4566')
-    """
-    boto3, botocore_exceptions = import_boto3()
-
-    try:
-        return boto3.client(service_name, **kwargs)
-    except botocore_exceptions.PartialCredentialsError as err:
-        raise ImproperlyConfigured(f"Incomplete AWS credentials: {err}") from err
-    except botocore_exceptions.NoCredentialsError as err:
-        raise ImproperlyConfigured("No AWS credentials found.") from err
-    except botocore_exceptions.NoRegionError as err:
-        raise ImproperlyConfigured("AWS region not specified.") from err

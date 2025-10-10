@@ -5,7 +5,6 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 from wagtailmedia.transcoding_backends.aws_utils import (
-    create_boto3_client,
     import_boto3,
 )
 from wagtailmedia.transcoding_backends.base import (
@@ -80,15 +79,6 @@ class S3Service:
     def __init__(self, config: AWSTranscodingConfig):
         """Initialise S3 service with configuration."""
         self.config = config
-        self._client = None
-
-    @property
-    def client(self):
-        """Lazy-load S3 client."""
-
-        if self._client is None:
-            self._client = create_boto3_client("s3")
-        return self._client
 
     def upload_file(self, file, bucket_name: str, object_name: str):
         """
@@ -105,13 +95,13 @@ class S3Service:
         Raises:
             S3UploadError: If upload fails due to permissions or connectivity
         """
-        _, botocore_exceptions = import_boto3()
+
+        boto3, self.botocore_exceptions = import_boto3()
+        s3 = boto3.client("s3")
 
         try:
-            return self.client.put_object(
-                Body=file, Bucket=bucket_name, Key=object_name
-            )
-        except botocore_exceptions.ClientError as err:
+            return s3.put_object(Body=file, Bucket=bucket_name, Key=object_name)
+        except self.botocore_exceptions.ClientError as err:
             raise S3UploadError(f"Failed to upload file to S3: {err}") from err
 
     def ensure_file_is_available(self, source_file, bucket_name: str) -> str:
@@ -237,33 +227,6 @@ class MediaConvertService:
     def __init__(self, config: AWSTranscodingConfig):
         """Initialise MediaConvert service with configuration."""
         self.config = config
-        self._mediaconvert_client = None
-        self._iam_client = None
-        self._role_arn = None
-
-    @property
-    def mediaconvert_client(self):
-        """
-        Lazy-load MediaConvert client.
-
-        Returns:
-            boto3.client: Configured MediaConvert client instance
-
-        Raises:
-            ImproperlyConfigured: If AWS credentials or region are missing
-        """
-
-        if self._mediaconvert_client is None:
-            self._mediaconvert_client = create_boto3_client("mediaconvert")
-        return self._mediaconvert_client
-
-    @property
-    def iam_client(self):
-        """Lazy-load IAM client."""
-
-        if self._iam_client is None:
-            self._iam_client = create_boto3_client("iam")
-        return self._iam_client
 
     def get_role_arn(self) -> str:
         """
@@ -279,15 +242,12 @@ class MediaConvertService:
             ImproperlyConfigured: If role cannot be found or IAM access is denied
         """
 
-        if self._role_arn is not None:
-            return self._role_arn
-
-        _, botocore_exceptions = import_boto3()
+        boto3, botocore_exceptions = import_boto3()
+        iam = boto3.client("iam")
 
         try:
-            response = self.iam_client.get_role(RoleName=self.config.mediaconvert_role)
-            self._role_arn = response["Role"]["Arn"]
-            return self._role_arn
+            response = iam.get_role(RoleName=self.config.mediaconvert_role)
+            return response["Role"]["Arn"]
         except botocore_exceptions.ClientError as err:
             raise ImproperlyConfigured(
                 f"Failed to get IAM role '{self.config.mediaconvert_role}': {err}"
@@ -315,14 +275,13 @@ class MediaConvertService:
             MediaConvertJobError: If job creation fails (invalid settings, permissions, etc.)
         """
 
-        _, botocore_exceptions = import_boto3()
+        boto3, botocore_exceptions = import_boto3()
+        mediaconvert = boto3.client("mediaconvert")
 
         role_arn = self.get_role_arn()
 
         try:
-            response = self.mediaconvert_client.create_job(
-                Role=role_arn, Settings=job_settings
-            )
+            response = mediaconvert.create_job(Role=role_arn, Settings=job_settings)
             return response
         except botocore_exceptions.ClientError as err:
             raise MediaConvertJobError(
