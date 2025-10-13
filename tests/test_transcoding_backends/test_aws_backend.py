@@ -3,7 +3,12 @@ from unittest.mock import Mock, patch
 from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase, override_settings
 
-from wagtailmedia.transcoding_backends.aws import AWSTranscodingConfig, S3Service
+from wagtailmedia.transcoding_backends.aws import (
+    AWSTranscodingConfig,
+    MediaConvertJobError,
+    MediaConvertService,
+    S3Service,
+)
 
 
 class AWSTranscodingConfigTests(TestCase):
@@ -99,3 +104,84 @@ class S3ServiceFileAvailabilityTests(TestCase):
 
             self.assertEqual(result, "s3://test-bucket/video.mp4")
             mock_upload.assert_called_once()
+
+
+class MediaConvertServiceTests(TestCase):
+    """Tests for MediaConvertService logic."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.config = Mock(spec=AWSTranscodingConfig)
+        self.config.mediaconvert_role = "MediaConvert_Default_Role"
+        self.service = MediaConvertService(self.config)
+
+        self.mock_boto3 = Mock()
+        self.mock_botocore_exceptions = Mock()
+        self.mock_botocore_exceptions.ClientError = type(
+            "ClientError", (Exception,), {}
+        )
+
+    def test_get_role_arn_raises_improperly_configured_on_iam_error(self):
+        """Test that IAM errors are converted to ImproperlyConfigured."""
+        mock_iam = Mock()
+        mock_iam.get_role.side_effect = self.mock_botocore_exceptions.ClientError()
+        self.mock_boto3.client.return_value = mock_iam
+
+        with patch(
+            "wagtailmedia.transcoding_backends.aws.import_boto3",
+            return_value=(self.mock_boto3, self.mock_botocore_exceptions),
+        ):
+            with self.assertRaises(ImproperlyConfigured) as context:
+                self.service.get_role_arn()
+            print(context.exception)
+            self.assertIn("Failed to get IAM role", str(context.exception))
+
+    def test_create_transcode_job_passes_parameters_correctly(self):
+        """Test that job parameters are assembled and passed to MediaConvert."""
+        test_role_arn = "arn:aws:iam::123456789:role/MediaConvert_Default_Role"
+        test_settings = {"OutputGroups": [], "Inputs": []}
+
+        mock_mediaconvert = Mock()
+        mock_mediaconvert.create_job.return_value = {"Job": {"Id": "job-12345"}}
+        self.mock_boto3.client.return_value = mock_mediaconvert
+
+        with patch(
+            "wagtailmedia.transcoding_backends.aws.import_boto3",
+            return_value=(self.mock_boto3, self.mock_botocore_exceptions),
+        ):
+            with patch.object(self.service, "get_role_arn", return_value=test_role_arn):
+                result = self.service.create_transcode_job(
+                    "s3://bucket/source.mp4", "s3://bucket/output/", test_settings
+                )
+
+                mock_mediaconvert.create_job.assert_called_once_with(
+                    Role=test_role_arn, Settings=test_settings
+                )
+
+                self.assertEqual(result, {"Job": {"Id": "job-12345"}})
+
+    def test_create_transcode_job_raises_error_on_mediaconvert_failure(self):
+        """Test that MediaConvert ClientError is converted to MediaConvertJobError."""
+        mock_mediaconvert = Mock()
+        mock_mediaconvert.create_job.side_effect = (
+            self.mock_botocore_exceptions.ClientError()
+        )
+        self.mock_boto3.client.return_value = mock_mediaconvert
+
+        with patch(
+            "wagtailmedia.transcoding_backends.aws.import_boto3",
+            return_value=(self.mock_boto3, self.mock_botocore_exceptions),
+        ):
+            with patch.object(
+                self.service, "get_role_arn", return_value="arn:aws:iam::123:role/Test"
+            ):
+                with self.assertRaises(MediaConvertJobError) as context:
+                    self.service.create_transcode_job(
+                        "s3://bucket/source.mp4",
+                        "s3://bucket/output/",
+                        {"test": "settings"},
+                    )
+
+                self.assertIn(
+                    "Failed to create MediaConvert job", str(context.exception)
+                )
