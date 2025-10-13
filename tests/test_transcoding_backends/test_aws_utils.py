@@ -23,6 +23,7 @@ class ImportBoto3Tests(TestCase):
             sys.modules,
             {
                 "boto3": self.mock_boto3,
+                "botocore": self.mock_botocore,
                 "botocore.exceptions": self.mock_botocore_exceptions,
             },
         ):
