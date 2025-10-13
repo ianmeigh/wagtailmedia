@@ -42,7 +42,7 @@ class AWSTranscodingConfigTests(TestCase):
         self.assertEqual(config.mediaconvert_role, "MediaConvert_Default_Role")
 
 
-class S3ServiceURLDetectionTests(TestCase):
+class S3ServiceFileAvailabilityTests(TestCase):
     """
     Tests for S3Service URL detection logic.
 
