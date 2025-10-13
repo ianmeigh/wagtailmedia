@@ -16,6 +16,11 @@ class ImportBoto3Tests(TestCase):
         self.mock_botocore = Mock()
         self.mock_botocore.exceptions = self.mock_botocore_exceptions
 
+    def tearDown(self):
+        """Clean up module-level cache after each test."""
+        aws_utils._boto3 = None
+        aws_utils._botocore_exceptions = None
+
     def test_caches_boto3_modules_on_repeated_calls(self):
         """Test that import_boto3 returns cached modules on repeated calls."""
 
