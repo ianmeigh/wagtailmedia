@@ -99,7 +99,12 @@ MediaConvert requires a service role with permissions to read from and write to 
 
 ## 2. IAM Permissions for Normal Operation
 
-These permissions are required for the IAM user, group, or role that will submit MediaConvert jobs and query their status.
+These permissions are required for the IAM user, group, or role that will submit
+MediaConvert jobs and query their status.
+
+You will need the Role ARN of your role created in step 1. You can get this from
+the AWS console. It will look like:
+arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role.
 
 ```json
 {
@@ -120,7 +125,7 @@ These permissions are required for the IAM user, group, or role that will submit
       "Sid": "AllowMediaRoleRetrieval",
       "Effect": "Allow",
       "Action": "iam:GetRole",
-      "Resource": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/MediaConvert_Default_Role"
+      "Resource": "YOUR_MEDIACONVERT_DEFAULT_ROLE_ARN"
     },
     {
       "Sid": "AllowMediaConvertJobAndQueueManagement",
