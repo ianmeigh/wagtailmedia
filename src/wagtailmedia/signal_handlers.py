@@ -63,16 +63,35 @@ def transcode_video(instance):
                 f"Started transcode job {transcoding_job.job_id} for media {instance.id}"
             )
         except TranscodingError as err:
+            logger.error(
+                f"Transcode failed for media {instance.id} ({instance.title}): {err}",
+                exc_info=True,
+                extra={
+                    "media_id": instance.id,
+                    "error_type": err.__class__.__name__,
+                },
+            )
+
             transcoding_job.status = TranscodingJobStatus.FAILED
             transcoding_job.metadata = {
                 "error_type": err.__class__.__name__,
                 "error": str(err),
             }
             transcoding_job.save()
-        except ImproperlyConfigured:
+        except ImproperlyConfigured as err:
+            logger.critical(
+                f"AWS transcoding misconfigured for media {instance.id}: {err}",
+                exc_info=True,
+            )
+
             transcoding_job.delete()
             raise
         except Exception as err:
+            logger.error(
+                f"Unexpected error transcoding media {instance.id}: {err}",
+                extra={"media_id": instance.id},
+            )
+
             transcoding_job.status = TranscodingJobStatus.FAILED
             transcoding_job.metadata = {"error_type": "unknown", "error": str(err)}
             transcoding_job.save()
