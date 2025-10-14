@@ -19,6 +19,12 @@ class S3UploadError(TranscodingError):
     pass
 
 
+class IAMGetRoleError(TranscodingError):
+    """Failed to get IAM role."""
+
+    pass
+
+
 class MediaConvertJobError(TranscodingError):
     """Failed to create or manage MediaConvert job."""
 
@@ -249,7 +255,7 @@ class MediaConvertService:
             response = iam.get_role(RoleName=self.config.mediaconvert_role)
             return response["Role"]["Arn"]
         except botocore_exceptions.ClientError as err:
-            raise ImproperlyConfigured(
+            raise IAMGetRoleError(
                 f"Failed to get IAM role '{self.config.mediaconvert_role}': {err}"
             ) from err
 

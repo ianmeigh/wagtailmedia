@@ -5,6 +5,7 @@ from django.test import TestCase, override_settings
 
 from wagtailmedia.transcoding_backends.aws import (
     AWSTranscodingConfig,
+    IAMGetRoleError,
     MediaConvertJobError,
     MediaConvertService,
     S3Service,
@@ -131,7 +132,7 @@ class MediaConvertServiceTests(TestCase):
             "wagtailmedia.transcoding_backends.aws.import_boto3",
             return_value=(self.mock_boto3, self.mock_botocore_exceptions),
         ):
-            with self.assertRaises(ImproperlyConfigured) as context:
+            with self.assertRaises(IAMGetRoleError) as context:
                 self.service.get_role_arn()
             print(context.exception)
             self.assertIn("Failed to get IAM role", str(context.exception))
