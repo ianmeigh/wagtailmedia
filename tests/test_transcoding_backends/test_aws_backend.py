@@ -123,7 +123,7 @@ class MediaConvertServiceTests(TestCase):
         )
 
     def test_get_role_arn_raises_improperly_configured_on_iam_error(self):
-        """Test that IAM errors are converted to ImproperlyConfigured."""
+        """Test that IAM errors are converted to IAMGetRoleError."""
         mock_iam = Mock()
         mock_iam.get_role.side_effect = self.mock_botocore_exceptions.ClientError()
         self.mock_boto3.client.return_value = mock_iam

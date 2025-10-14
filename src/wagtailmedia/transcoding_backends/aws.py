@@ -245,7 +245,7 @@ class MediaConvertService:
             str: Full IAM role ARN (arn:aws:iam::account-id:role/role-name)
 
         Raises:
-            ImproperlyConfigured: If role cannot be found or IAM access is denied
+            IAMGetRoleError: If role cannot be found or IAM access is denied
         """
 
         boto3, botocore_exceptions = import_boto3()
@@ -277,7 +277,6 @@ class MediaConvertService:
             dict: MediaConvert CreateJob API response containing job ID and metadata
 
         Raises:
-            ImproperlyConfigured: If IAM role cannot be retrieved
             MediaConvertJobError: If job creation fails (invalid settings, permissions, etc.)
         """
 
@@ -336,6 +335,7 @@ class EMCTranscodingBackend(AbstractTranscodingBackend):
             ValueError: If source_file is invalid
             S3UploadError: If file upload to S3 fails
             MediaConvertJobError: If job creation fails
+            IAMGetRoleError: If IAM role cannot be retrieved
             ImproperlyConfigured: If AWS configuration is invalid
         """
 
