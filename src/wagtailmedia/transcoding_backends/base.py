@@ -7,6 +7,12 @@ class TranscodingError(Exception):
     pass
 
 
+class TranscodingConfigurationError(Exception):
+    """Configuration error that prevents transcoding from proceeding."""
+
+    pass
+
+
 class AbstractTranscodingBackend(ABC):
     @abstractmethod
     def start_transcode(self, media_file, target_format):

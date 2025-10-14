@@ -1,6 +1,5 @@
 import logging
 
-from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 
@@ -9,7 +8,10 @@ from wagtailmedia.models import (
     TranscodingJobStatus,
     get_media_model,
 )
-from wagtailmedia.transcoding_backends.base import TranscodingError
+from wagtailmedia.transcoding_backends.base import (
+    TranscodingConfigurationError,
+    TranscodingError,
+)
 from wagtailmedia.utils import get_media_transcoding_backend
 
 
@@ -78,9 +80,9 @@ def transcode_video(instance):
                 "error": str(err),
             }
             transcoding_job.save()
-        except ImproperlyConfigured as err:
+        except TranscodingConfigurationError as err:
             logger.critical(
-                f"AWS transcoding misconfigured for media {instance.id}: {err}",
+                f"Transcoding backend configuration error for media {instance.id}: {err}",
                 exc_info=True,
             )
 

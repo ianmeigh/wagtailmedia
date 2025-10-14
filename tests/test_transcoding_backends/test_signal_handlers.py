@@ -1,6 +1,5 @@
 from unittest.mock import Mock, patch
 
-from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
 from django.test import TestCase, override_settings
 
@@ -12,6 +11,7 @@ from wagtailmedia.models import (
 )
 from wagtailmedia.signal_handlers import transcode_video
 from wagtailmedia.transcoding_backends.aws import MediaConvertJobError
+from wagtailmedia.transcoding_backends.base import TranscodingConfigurationError
 
 
 class TranscodeVideoTests(TestCase):
@@ -128,14 +128,14 @@ class TranscodeVideoTests(TestCase):
             self.assertIn("Failed to create MediaConvert job", job.metadata["error"])
 
     def test_no_job_persists_when_improperly_configured(self):
-        """Test that no job persists when ImproperlyConfigured is raised."""
-        self.mock_backend.start_transcode.side_effect = ImproperlyConfigured()
+        """Test that no job persists when TranscodingConfigurationError is raised."""
+        self.mock_backend.start_transcode.side_effect = TranscodingConfigurationError()
 
         with patch(
             "wagtailmedia.signal_handlers.get_media_transcoding_backend",
             return_value=self.mock_backend_cls,
         ):
-            with self.assertRaises(ImproperlyConfigured):
+            with self.assertRaises(TranscodingConfigurationError):
                 transcode_video(self.media)
 
             # Verify no job persists in database
