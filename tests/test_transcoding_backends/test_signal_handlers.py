@@ -39,7 +39,7 @@ class TranscodeVideoTests(TestCase):
 
     def test_skips_transcoding_for_audio_media(self):
         """Test that non-video media types are skipped."""
-        self.media.type = "audio"
+        self.media.type = MediaType.AUDIO
 
         with patch(
             "wagtailmedia.signal_handlers.get_media_transcoding_backend",

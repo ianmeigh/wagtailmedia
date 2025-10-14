@@ -5,6 +5,7 @@ from django.db.models.signals import post_delete, post_save
 
 from wagtailmedia.models import (
     MediaTranscodingJob,
+    MediaType,
     TranscodingJobStatus,
     get_media_model,
 )
@@ -32,72 +33,74 @@ def post_delete_file_cleanup(instance, **kwargs):
 def transcode_video(instance):
     backend_cls = get_media_transcoding_backend()
 
-    if instance.type == "video" and backend_cls:
-        file = instance.file
+    if instance.type == MediaType.AUDIO or not backend_cls:
+        return
 
-        backend = backend_cls()
+    file = instance.file
 
-        # Check for existing active job
-        existing_job = MediaTranscodingJob.objects.filter(
-            media=instance,
-            status__in=[TranscodingJobStatus.PENDING, TranscodingJobStatus.PROGRESSING],
-        ).first()
+    backend = backend_cls()
 
-        if existing_job:
-            logger.info(
-                f"Skipping transcode for media {instance.id} ({instance.title}): "
-                f"Job {existing_job.job_id} already {existing_job.status}"
-            )
-            return
+    # Check for existing active job
+    existing_job = MediaTranscodingJob.objects.filter(
+        media=instance,
+        status__in=[TranscodingJobStatus.PENDING, TranscodingJobStatus.PROGRESSING],
+    ).first()
 
-        transcoding_job = MediaTranscodingJob.objects.create(
-            media=instance,
-            status=TranscodingJobStatus.PENDING,
+    if existing_job:
+        logger.info(
+            f"Skipping transcode for media {instance.id} ({instance.title}): "
+            f"Job {existing_job.job_id} already {existing_job.status}"
+        )
+        return
+
+    transcoding_job = MediaTranscodingJob.objects.create(
+        media=instance,
+        status=TranscodingJobStatus.PENDING,
+    )
+
+    try:
+        response = backend.start_transcode(file)
+        transcoding_job.job_id = response["Job"]["Id"]
+        transcoding_job.backend = f"{backend_cls.__module__}.{backend_cls.__name__}"
+        transcoding_job.save()
+
+        logger.info(
+            f"Started transcode job {transcoding_job.job_id} for media {instance.id}"
+        )
+    except TranscodingError as err:
+        logger.error(
+            f"Transcode failed for media {instance.id} ({instance.title}): {err}",
+            exc_info=True,
+            extra={
+                "media_id": instance.id,
+                "error_type": err.__class__.__name__,
+            },
         )
 
-        try:
-            response = backend.start_transcode(file)
-            transcoding_job.job_id = response["Job"]["Id"]
-            transcoding_job.backend = f"{backend_cls.__module__}.{backend_cls.__name__}"
-            transcoding_job.save()
+        transcoding_job.status = TranscodingJobStatus.FAILED
+        transcoding_job.metadata = {
+            "error_type": err.__class__.__name__,
+            "error": str(err),
+        }
+        transcoding_job.save()
+    except TranscodingConfigurationError as err:
+        logger.critical(
+            f"Transcoding backend configuration error for media {instance.id}: {err}",
+            exc_info=True,
+        )
 
-            logger.info(
-                f"Started transcode job {transcoding_job.job_id} for media {instance.id}"
-            )
-        except TranscodingError as err:
-            logger.error(
-                f"Transcode failed for media {instance.id} ({instance.title}): {err}",
-                exc_info=True,
-                extra={
-                    "media_id": instance.id,
-                    "error_type": err.__class__.__name__,
-                },
-            )
+        transcoding_job.delete()
+        raise
+    except Exception as err:
+        logger.error(
+            f"Unexpected error transcoding media {instance.id}: {err}",
+            extra={"media_id": instance.id},
+        )
 
-            transcoding_job.status = TranscodingJobStatus.FAILED
-            transcoding_job.metadata = {
-                "error_type": err.__class__.__name__,
-                "error": str(err),
-            }
-            transcoding_job.save()
-        except TranscodingConfigurationError as err:
-            logger.critical(
-                f"Transcoding backend configuration error for media {instance.id}: {err}",
-                exc_info=True,
-            )
-
-            transcoding_job.delete()
-            raise
-        except Exception as err:
-            logger.error(
-                f"Unexpected error transcoding media {instance.id}: {err}",
-                extra={"media_id": instance.id},
-            )
-
-            transcoding_job.status = TranscodingJobStatus.FAILED
-            transcoding_job.metadata = {"error_type": "unknown", "error": str(err)}
-            transcoding_job.save()
-            raise
+        transcoding_job.status = TranscodingJobStatus.FAILED
+        transcoding_job.metadata = {"error_type": "unknown", "error": str(err)}
+        transcoding_job.save()
+        raise
 
 
 def post_save_transcode_video(instance, **kwargs):
