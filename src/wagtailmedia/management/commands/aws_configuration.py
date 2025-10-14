@@ -4,7 +4,6 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from wagtailmedia.transcoding_backends.aws_utils import (
-    create_boto3_client,
     import_boto3,
 )
 
@@ -106,8 +105,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # Create AWS service clients
         self.stdout.write("Creating AWS clients...")
-        sqs_client = create_boto3_client(service_name="sqs")
-        events_client = create_boto3_client(service_name="events")
+        sqs_client = self.boto3.client(service_name="sqs")
+        events_client = self.boto3.client(service_name="events")
 
         # Create SQS queue
         self.stdout.write(f"Creating or getting SQS queue '{self.sqs_queue_name}'...")
