@@ -17,26 +17,29 @@ You can use a number of methods to specify [credentials for boto3](https://boto3
 - AWS_SECRET_ACCESS_KEY
 - AWS_DEFAULT_REGION
 
-Optionally you can provide custom names for the Simple Queue Services queue and EventBridge rule, via Django settings. The following code allows configuration via environment variables.
+You must specify the name of the S3 bucket that should be used to store transcoded media using the following setting:
+
+```python
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")  # S3 bucket offline files are uploaded to and the transcoded files are stored in
+```
+
+Optionally you can provide custom names for the Simple Queue Services queue, EventBridge rule and MediaConvert role, via Django settings. The following code allows configuration via environment variables:
 
 ```python
 AWS_SQS_QUEUE_NAME = os.environ.get("AWS_SQS_QUEUE_NAME", "")  # default: "mediaconvert-messages"
 AWS_EVENTBRIDGE_RULE_NAME = os.environ.get("AWS_EVENTBRIDGE_RULE_NAME", "")  # default: "mediaconvert-job-events"
+AWS_MEDIACONVERT_ROLE_NAME = os.environ.get("AWS_MEDIACONVERT_ROLE_NAME", "")  #  default: MediaConvert_Default_Role
 ```
 
 ## AWS Permissions (Partially) Automated Setup
 
 This guide explains how to configure AWS IAM roles and policies for secure, automated use of AWS Elemental MediaConvert as a transcoding backend.
 
----
-
 ## Prerequisites
 
 - An AWS account with permissions to create IAM roles, policies, and MediaConvert jobs
 - Access to the AWS Console or CLI
 - An S3 bucket for input/output media
-
----
 
 ## 1. Create the MediaConvert Service Role
 
@@ -75,7 +78,7 @@ MediaConvert requires a service role with permissions to read from and write to 
     - In the AWS Console, go to IAM > Roles > Create role
     - Select **AWS service** and choose **MediaConvert**
     - Proceed with defaults
-    - Name the role (it is strongly recommended to use the name `MediaConvert_Default_Role`)
+    - Name the role (it is strongly recommended to use the name `MediaConvert_Default_Role`, if you need to use a custom name, set this in the `AWS_MEDIACONVERT_ROLE_NAME` setting)
     - Edit the role and remove the default policies
     - Attach the MediaConvert IAM policy you created in step 1
     - The Trusted entities (under the Trust relationships tab) should be as below:
@@ -93,11 +96,16 @@ MediaConvert requires a service role with permissions to read from and write to 
       }
       ```
 
----
+    - Make a note of the Role ARN for step 2 below. It will look something like `arn:aws:iam::YOUR_AWS_USER_ID:role/service-role/MediaConvert_Default_Role`, depending on the name you chose.
 
 ## 2. IAM Permissions for Normal Operation
 
-These permissions are required for the IAM user, group, or role that will submit MediaConvert jobs and query their status.
+These permissions are required for the IAM user, group, or role that will submit
+MediaConvert jobs and query their status.
+
+You will need the Role ARN of your role created in step 1. You can get this from
+the AWS console. It will look like:
+arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role.
 
 ```json
 {
@@ -107,12 +115,18 @@ These permissions are required for the IAM user, group, or role that will submit
       "Sid": "AllowPassMediaConvertRoleToService",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role",
+      "Resource": "YOUR_MEDIACONVERT_DEFAULT_ROLE_ARN",
       "Condition": {
         "StringEquals": {
           "iam:PassedToService": "mediaconvert.amazonaws.com"
         }
       }
+    },
+    {
+      "Sid": "AllowMediaRoleRetrieval",
+      "Effect": "Allow",
+      "Action": "iam:GetRole",
+      "Resource": "YOUR_MEDIACONVERT_DEFAULT_ROLE_ARN"
     },
     {
       "Sid": "AllowMediaConvertJobAndQueueManagement",
@@ -122,12 +136,19 @@ These permissions are required for the IAM user, group, or role that will submit
         "mediaconvert:CreateJob"
       ],
       "Resource": "arn:aws:mediaconvert:YOUR_AWS_REGION:YOUR_AWS_ACCOUNT_ID:queues/Default"
+    },
+    {
+      "Sid": "AllowS3UploadAndDownload",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::YOUR_S3_BUCKET_NAME/*"
     }
   ]
 }
 ```
-
----
 
 ## 3. IAM Permissions for Management Command (Setup Automation)
 
@@ -162,8 +183,6 @@ If you use the provided management command to automate some of the AWS resource 
 ```
 
 These permissions are just required to run the setup management command and can be removed afterwards.
-
----
 
 ## 4. Additional Notes
 
