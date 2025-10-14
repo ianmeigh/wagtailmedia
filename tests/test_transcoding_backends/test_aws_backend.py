@@ -134,7 +134,6 @@ class MediaConvertServiceTests(TestCase):
         ):
             with self.assertRaises(IAMGetRoleError) as context:
                 self.service.get_role_arn()
-            print(context.exception)
             self.assertIn("Failed to get IAM role", str(context.exception))
 
     def test_create_transcode_job_passes_parameters_correctly(self):
