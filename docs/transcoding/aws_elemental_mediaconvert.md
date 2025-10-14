@@ -95,6 +95,7 @@ MediaConvert requires a service role with permissions to read from and write to 
         ]
       }
       ```
+
     - Make a note of the Role ARN for step 2 below. It will look something like `arn:aws:iam::YOUR_AWS_USER_ID:role/service-role/MediaConvert_Default_Role`, depending on the name you chose.
 
 ## 2. IAM Permissions for Normal Operation
@@ -114,7 +115,7 @@ arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role.
       "Sid": "AllowPassMediaConvertRoleToService",
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/MediaConvert_Default_Role",
+      "Resource": "YOUR_MEDIACONVERT_DEFAULT_ROLE_ARN",
       "Condition": {
         "StringEquals": {
           "iam:PassedToService": "mediaconvert.amazonaws.com"
