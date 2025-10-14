@@ -9,7 +9,7 @@ from wagtailmedia.models import (
     TranscodingJobStatus,
     get_media_model,
 )
-from wagtailmedia.transcoding_backends.aws import TranscodingError
+from wagtailmedia.transcoding_backends.base import TranscodingError
 from wagtailmedia.utils import get_media_transcoding_backend
 
 
