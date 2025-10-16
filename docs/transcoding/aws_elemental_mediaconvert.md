@@ -248,7 +248,7 @@ From the EventBridge dashboard, select Rules and Create API Rule and complete th
 
 Next select to enter a custom pattern (JSON editor) and enter the policy below:
 
-```bash
+```json
 {
   "source": ["aws.mediaconvert"],
   "detail-type": ["MediaConvert Job State Change"],
