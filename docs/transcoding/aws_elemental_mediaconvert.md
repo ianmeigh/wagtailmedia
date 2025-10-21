@@ -40,14 +40,9 @@ sequenceDiagram
     autonumber
 
     participant WEB as Public Filestore
-
-    box App
-        participant APP as App (Uploader/Controller)
-        participant WH as Webhook Handler
-    end
+    participant APP as App (Uploader/Controller)
 
     box AWS
-
         participant S3 as S3
         participant EMC as MediaConvert
         participant EB as EventBridge (default bus)
@@ -71,10 +66,10 @@ sequenceDiagram
         EMC->>EB: Job State Change event
         EB->>SM:  Retrieve API key secret
         SM-->>EB: Secret value
-        EB->>WH: HTTPS POST (API Destination)
+        EB->>APP: HTTPS POST (API Destination)
     end
 
-    Note over EB,WH: EventBridge API Destination forwards events to webhook with API key header
+    Note over EB,APP: EventBridge API Destination forwards events to webhook with API key header
 
     opt Host app needs copy to serve
         APP->>S3: Request output
