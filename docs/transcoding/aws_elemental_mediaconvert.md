@@ -18,7 +18,7 @@ We recommend using the most recent boto3 release supported by your environment.
 ### Prerequisites
 
 - An AWS account with access to the web console and permissions to create IAM roles/policies, MediaConvert jobs, EventBridge rules/API Destinations, Secrets Manager secrets, and S3 objects.
-- An S3 bucket for input/output media.
+- An S3 bucket for output media, and potentially input media too.
 - A public webhook endpoint URL (served by your host app) to receive job events.
 
 ### AWS Services Used
@@ -33,7 +33,7 @@ We recommend using the most recent boto3 release supported by your environment.
 
 This transcoding backend submits jobs to AWS Elemental MediaConvert (MediaConvert) and then receives HTTP POST callbacks with job status updates. The callback (webhook) is protected by a pre-configured API key sent in a request header.
 
-We recommend, and provide configuration guidance for, configuring AWS EventBridge (EventBridge) to capture MediaConvert job events and using an EventBridge API Destination/Connection to POST to the public endpoint URL
+We recommend, and provide configuration guidance for, configuring AWS EventBridge (EventBridge) to capture MediaConvert job events and using an EventBridge API Destination/Connection to POST to the public endpoint URL.
 
 ```mermaid
 sequenceDiagram
@@ -224,7 +224,7 @@ EventBridge will forward MediaConvert job updates to your public webhook using a
 
 From the EventBridge dashboard, select API destinations and Create API Destination and complete the form. This details below document only the setting required by the backend; names and other values are intentionally left to your preference:
 
-- API destination endpoint - The public URL that will listen for the webhook
+- API destination endpoint - The public URL that will listen for the webhook, e.g. https://YOUR_HOSTNAME/media/webhooks/transcoding/
 - HTTP Method - POST
 - Rate Limit (optional)
   - The default is 300 invocations per second
