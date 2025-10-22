@@ -24,12 +24,12 @@ app_name = "wagtailmedia"
 urlpatterns = []
 
 if wagtailmedia_settings.WEBHOOK_API_KEY:
-    from wagtailmedia.views.webhooks import TranscodingWebhookView
+    from wagtailmedia.views.webhooks import AWSTranscodingWebhookView
 
     urlpatterns.append(
         path(
-            "transcoding/",
-            TranscodingWebhookView.as_view(),
-            name="transcoding_webhook",
+            "aws-transcoding/",
+            AWSTranscodingWebhookView.as_view(),
+            name="aws_transcoding_webhook",
         ),
     )

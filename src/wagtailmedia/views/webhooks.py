@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class TranscodingWebhookView(View):
+class AWSTranscodingWebhookView(View):
     """
     Webhook endpoint for receiving transcoding job status updates.
 
