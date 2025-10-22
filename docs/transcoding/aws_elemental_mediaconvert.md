@@ -1,12 +1,82 @@
 
 # AWS Elemental MediaConvert Transcoding Backend
 
+This backend enables wagtailmedia to submit transcode jobs to AWS Elemental MediaConvert and receive asynchronous status updates via a webhook. It supports input from S3 or a public URL, and writes outputs to your configured media file store.
+
 ## Installation
 
-This backend is based on the boto3 library which must be installed in your host project; the minimum required version is 1.40.43 although we always recommend using the most recent release. Either add it to your host project's requirements or use the optional `boto3` extra e.g:
+This backend uses boto3 (minimum 1.40.43). Install via the optional extra:
 
 ```bash
-pip install wagtailmedia[boto3]
+pip install "wagtailmedia[boto3]"
+```
+
+We recommend using the most recent boto3 release supported by your environment.
+
+## AWS Configuration
+
+### Prerequisites
+
+- An AWS account with access to the web console and permissions to create IAM roles/policies, MediaConvert jobs, EventBridge rules/API Destinations, Secrets Manager secrets, and S3 objects.
+- An S3 bucket for output media, and potentially input media too.
+- A public webhook endpoint URL (served by your host app) to receive job events.
+
+### AWS Services Used
+
+- MediaConvert: executes the transcode job.
+- S3: optional input; required for output.
+- EventBridge (default event bus): receives MediaConvert job state change events.
+- EventBridge API Destination + Connection: forwards events to your public webhook and injects the API key from Secrets - Manager.
+- Secrets Manager: stores the webhook API key.
+
+> This guide documents only fields that affect integration, permissions, or security. Names and other cosmetic values (e.g., rule names/descriptions) are intentionally left to your preference.
+
+This transcoding backend submits jobs to AWS Elemental MediaConvert (MediaConvert) and then receives HTTP POST callbacks with job status updates. The callback (webhook) is protected by a pre-configured API key sent in a request header.
+
+We recommend, and provide configuration guidance for, configuring AWS EventBridge (EventBridge) to capture MediaConvert job events and using an EventBridge API Destination/Connection to POST to the public endpoint URL.
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant WEB as Public Filestore
+    participant APP as App (Uploader/Controller)
+
+    box AWS
+        participant S3 as S3
+        participant EMC as MediaConvert
+        participant EB as EventBridge (default bus)
+        participant SM as SecretsManager
+    end
+
+    opt Input is not publicly available
+        APP->>S3: Upload input
+    end
+    APP->>EMC: CreateJob (S3/public URI, config)
+    EMC-->>APP: Response (Job ID)
+    alt Input from S3
+      EMC->>S3: Read input
+    else Input from public filestore
+      EMC->>WEB: Read input
+    end
+
+    EMC->>S3: Write output
+
+    loop Job lifecycle (PROGRESSING/COMPLETE/ERROR)
+        EMC->>EB: Job State Change event
+        EB->>SM:  Retrieve API key secret
+        SM-->>EB: Secret value
+        EB->>APP: HTTPS POST (API Destination)
+    end
+
+    Note over EB,APP: EventBridge API Destination forwards events to webhook with API key header
+
+    opt Host app needs copy to serve
+        APP->>S3: Request output
+        S3-->>APP: Transcoded file
+        APP->>WEB: Upload transcoded file
+    end
+
 ```
 
 ## Host Application Settings
@@ -23,89 +93,80 @@ You must specify the name of the S3 bucket that should be used to store transcod
 AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")  # S3 bucket offline files are uploaded to and the transcoded files are stored in
 ```
 
-Optionally you can provide custom names for the Simple Queue Services queue, EventBridge rule and MediaConvert role, via Django settings. The following code allows configuration via environment variables:
+## AWS (Manual) Setup
 
-```python
-AWS_SQS_QUEUE_NAME = os.environ.get("AWS_SQS_QUEUE_NAME", "")  # default: "mediaconvert-messages"
-AWS_EVENTBRIDGE_RULE_NAME = os.environ.get("AWS_EVENTBRIDGE_RULE_NAME", "")  # default: "mediaconvert-job-events"
-AWS_MEDIACONVERT_ROLE_NAME = os.environ.get("AWS_MEDIACONVERT_ROLE_NAME", "")  #  default: MediaConvert_Default_Role
-```
+Using the AWS web console we can let AWS create some of the resources roles and policies for us. The steps below guide you through the manual setup so you keep tight control.
 
-## AWS Permissions (Partially) Automated Setup
+1. [Create the MediaConvert Service Policy](#create-the-mediaconvert-service-policy)
+1. [Create the MediaConvert Service Role](#create-the-mediaconvert-service-role)
+1. [Create the IAM user/group policy](#create-the-iam-usergrouprole-policy)
+1. [Create the EventBridge Connection & API Destination](#create-the-eventbridge-connection--api-destination)
+1. [Create the EventBridge rule](#create-the-eventbridge-rule)
 
-This guide explains how to configure AWS IAM roles and policies for secure, automated use of AWS Elemental MediaConvert as a transcoding backend.
+Ensure you replace placeholder variables (`YOUR_BUCKET_NAME`, `ARNs`) to match your environment. If you use a custom role or ARN for the media convert role, expose it to your app via `AWS_MEDIACONVERT_ROLE_NAME`.
 
-## Prerequisites
+### Create the MediaConvert Service Policy
 
-- An AWS account with permissions to create IAM roles, policies, and MediaConvert jobs
-- Access to the AWS Console or CLI
-- An S3 bucket for input/output media
+A policy is needed to allow read/write access to an S3 bucket. This policy will be made used to create a role for MediaConvert to assume in the next step.
 
-## 1. Create the MediaConvert Service Role
+From the AWS IAM dashboard create a new policy and use the JSON editor to copy the policy below:
 
-MediaConvert requires a service role with permissions to read from and write to your S3 bucket. This role is assumed by the MediaConvert service when running jobs.
-
-1. **Create a new IAM policy** (e.g., `MediaConvert_Default_Role_Policy`) with the following permissions:
-
-    ```json
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
     {
-      "Version": "2012-10-17",
-      "Statement": [
-        {
-          "Effect": "Allow",
-          "Action": [
-            "s3:Get*",
-            "s3:List*"
-          ],
-          "Resource": [
-            "arn:aws:s3:::YOUR_BUCKET_NAME/*"
-          ]
-        },
-        {
-          "Effect": "Allow",
-          "Action": [
-            "s3:Put*"
-          ],
-          "Resource": [
-            "arn:aws:s3:::YOUR_BUCKET_NAME/*"
-          ]
-        }
+      "Effect": "Allow",
+      "Action": [
+        "s3:Get*",
+        "s3:List*"
+      ],
+      "Resource": [
+        "arn:aws:s3:::YOUR_BUCKET_NAME/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:Put*"
+      ],
+      "Resource": [
+        "arn:aws:s3:::YOUR_BUCKET_NAME/*"
       ]
     }
-    ```
+  ]
+}
+```
 
-2. **Create a new IAM role for MediaConvert**:
-    - In the AWS Console, go to IAM > Roles > Create role
-    - Select **AWS service** and choose **MediaConvert**
-    - Proceed with defaults
-    - Name the role (it is strongly recommended to use the name `MediaConvert_Default_Role`, if you need to use a custom name, set this in the `AWS_MEDIACONVERT_ROLE_NAME` setting)
-    - Edit the role and remove the default policies
-    - Attach the MediaConvert IAM policy you created in step 1
-    - The Trusted entities (under the Trust relationships tab) should be as below:
+### Create the MediaConvert Service Role
 
-      ```json
-      {
-        "Version": "2012-10-17",
-        "Statement": [
-          {
-            "Effect": "Allow",
-            "Principal": { "Service": "mediaconvert.amazonaws.com" },
-            "Action": "sts:AssumeRole"
-          }
-        ]
-      }
-      ```
+Now we create the service role MediaConvert will assume to allow it to read input from S3 and write outputs.
 
-    - Make a note of the Role ARN for step 2 below. It will look something like `arn:aws:iam::YOUR_AWS_USER_ID:role/service-role/MediaConvert_Default_Role`, depending on the name you chose.
+From the AWS IAM dashboard create a new role using a _Custom trust policy_ and copy the policy below:
 
-## 2. IAM Permissions for Normal Operation
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": { "Service": "mediaconvert.amazonaws.com" },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
 
-These permissions are required for the IAM user, group, or role that will submit
-MediaConvert jobs and query their status.
+Attach the permission policy created in the [previous step](#create-the-mediaconvert-service-policy).
 
-You will need the Role ARN of your role created in step 1. You can get this from
-the AWS console. It will look like:
-arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role.
+When naming the role it is strongly recommended to use the name `MediaConvert_Default_Role`. If you need to use a custom name, expose this to the app using the `AWS_MEDIACONVERT_ROLE_NAME` setting.
+
+### Create the IAM user/group/role policy
+
+These permissions are required for the IAM user, group, or role that will submit MediaConvert jobs and query their status.
+
+You will need the Role ARN of your role in the [previous step](#create-the-mediaconvert-service-role). You can find this in the AWS console. It will look like:
+`arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role.`
 
 ```json
 {
@@ -150,39 +211,53 @@ arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role.
 }
 ```
 
-## 3. IAM Permissions for Management Command (Setup Automation)
+If you target a custom queue, set the "Resource" for GetQueue to match your configuration.
 
-If you use the provided management command to automate some of the AWS resource setup (SQS, EventBridge, etc.), grant these permissions to the user or role running the command (as specified with the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY settings):
+### Create the EventBridge Connection & API Destination
+
+EventBridge will forward MediaConvert job updates to your public webhook using an API key header.
+
+From the EventBridge dashboard, select API destinations and Create API Destination and complete the form. This details below document only the setting required by the backend; names and other values are intentionally left to your preference:
+
+- API destination endpoint - The public URL that will listen for the webhook, e.g. https://YOUR_HOSTNAME/media/webhooks/transcoding/
+- HTTP Method - POST
+- Rate Limit (optional)
+  - The default is 300 invocations per second
+- Connection configuration > Create a new connection
+- API type - Public
+- Authorization type - API key
+- API key name - X-API-Key
+- Value
+  - You should generate a secret key and enter it in this field, keep this key safe as you will need to expose it to the app later.
+- Use an AWS owned key for connection encryption
+
+### Create the EventBridge rule
+
+EventBridge uses rules to capture specific events from a bus, here we configure a rule to capture MediaConvert job state change events.
+
+From the EventBridge dashboard, select Rules and Create API Rule and complete the form. This details below document only the setting required by the backend; names and other values are intentionally left to your preference:
+
+- Event bus - Default
+- Enable rule on selected bus - Yes
+- Rule with an event pattern - Yes
+
+Next select to enter a custom pattern (JSON editor) and enter the policy below:
 
 ```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "AllowMediaConvertRuleAndTargetManagement",
-      "Effect": "Allow",
-      "Action": [
-        "events:PutTargets",
-        "events:PutRule",
-        "events:ListRules"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Sid": "AllowSQSRuleCreation",
-      "Effect": "Allow",
-      "Action": [
-        "sqs:GetQueueAttributes",
-        "sqs:CreateQueue",
-        "sqs:SetQueueAttributes"
-      ],
-      "Resource": "*"
-    }
-  ]
+  "source": ["aws.mediaconvert"],
+  "detail-type": ["MediaConvert Job State Change"],
+  "detail": {
+    "status": ["PROGRESSING", "COMPLETE", "ERROR"]
+  }
 }
 ```
 
-These permissions are just required to run the setup management command and can be removed afterwards.
+Next complete the remaining pages to create the rule using the following details:
+
+- Target type - EventBridge API destination
+- API destination - Use an existing API destination (the one created in the [previous step](#create-the-eventbridge-connection--api-destination))
+- Execution role - Create a new role for this specific resource
 
 ## 4. Additional Notes
 
