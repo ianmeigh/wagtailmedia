@@ -89,7 +89,7 @@ class AWSTranscodingWebhookView(View):
         job_status = detail.get("status")
         job_metadata = {}
 
-        # When a completed MediaConvert event is sent is includes additional information
+        # When a completed MediaConvert event is sent it includes additional information
         if detail.get("outputGroupDetails"):
             job_metadata = detail.get("outputGroupDetails")[0].get("outputDetails")
 
