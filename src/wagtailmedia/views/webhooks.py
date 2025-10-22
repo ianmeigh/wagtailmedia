@@ -73,7 +73,6 @@ class AWSTranscodingWebhookView(View):
         if not self._verify_api_key(request):
             logger.warning(
                 "Webhook request with invalid authentication",
-                extra={"remote_addr": request.META.get("REMOTE_ADDR")},
             )
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
@@ -97,7 +96,6 @@ class AWSTranscodingWebhookView(View):
         if not job_id or not job_status:
             logger.error(
                 "Webhook received with missing required fields",
-                extra={"payload": payload},
             )
             return JsonResponse(
                 {"error": "Missing required fields: job_id and status"}, status=400
@@ -107,8 +105,8 @@ class AWSTranscodingWebhookView(View):
             media_transcoding_job = MediaTranscodingJob.objects.get(job_id=job_id)
         except MediaTranscodingJob.DoesNotExist:
             logger.warning(
-                f"Webhook received for unknown job_id: {job_id}",
-                extra={"job_id": job_id},
+                "Webhook received for unknown job_id: %s",
+                job_id,
             )
             return JsonResponse({"error": f"Job not found: {job_id}"}, status=404)
 
@@ -116,13 +114,16 @@ class AWSTranscodingWebhookView(View):
         status = self._map_status(job_status)
         if not status:
             logger.error(
-                f"Webhook received with invalid status: {job_status}",
-                extra={"job_id": job_id, "status": job_status},
+                "Webhook received with invalid status: %s",
+                job_status,
             )
             return JsonResponse({"error": f"Invalid status: {job_status}"}, status=400)
 
         logger.debug(
-            f"Webhook received for Job ID: {job_id}, status: {job_status}, with metadata: {job_metadata}"
+            "Webhook received for Job ID: %s, status: %s, with metadata: %s",
+            job_id,
+            job_status,
+            job_metadata,
         )
 
         # If the transcoding job object is already complete, skip updating
@@ -151,12 +152,10 @@ class AWSTranscodingWebhookView(View):
         media_transcoding_job.save()
 
         logger.info(
-            f"Updated job {job_id} status from {old_status} to {media_transcoding_job.status}",
-            extra={
-                "job_id": job_id,
-                "old_status": old_status,
-                "new_status": media_transcoding_job.status,
-            },
+            "Updated job %s status from %s to %s",
+            job_id,
+            old_status,
+            media_transcoding_job.status,
         )
 
     def _create_rendition(self, job_id, job_metadata):
