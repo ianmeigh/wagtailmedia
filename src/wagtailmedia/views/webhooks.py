@@ -111,8 +111,9 @@ class AWSTranscodingWebhookView(View):
             return JsonResponse({"error": f"Job not found: {job_id}"}, status=404)
 
         # Map external status to internal status
-        status = self._map_status(job_status)
-        if not status:
+        try:
+            status = self._map_status(job_status)
+        except KeyError:
             logger.error(
                 "Webhook received with invalid status: %s",
                 job_status,
@@ -229,4 +230,4 @@ class AWSTranscodingWebhookView(View):
             "PROGRESSING": TranscodingJobStatus.PROGRESSING,
         }
 
-        return status_map.get(status.upper())
+        return status_map[status.upper()]
