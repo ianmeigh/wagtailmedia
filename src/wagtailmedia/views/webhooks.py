@@ -8,6 +8,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from wagtailmedia.models import (
+    MediaRendition,
     MediaTranscodingJob,
     TranscodingJobStatus,
 )
@@ -128,6 +129,10 @@ class TranscodingWebhookView(View):
         if media_transcoding_job.status is not TranscodingJobStatus.COMPLETE:
             self._update_transcoding_job(job_id, job_status, job_metadata)
 
+        # If the response status will mark the transcoding as complete, also create the final rendition
+        if status is TranscodingJobStatus.COMPLETE:
+            self._create_rendition(job_id, job_metadata)
+
         return JsonResponse(
             {
                 "success": True,
@@ -153,6 +158,40 @@ class TranscodingWebhookView(View):
                 "new_status": media_transcoding_job.status,
             },
         )
+
+    def _create_rendition(self, job_id, job_metadata):
+        # TODO: If storage backend not S3 (or same bucket) copy the file to the default storage backend
+        # 1. Get backend (from django.core.files.storage import default_storage)
+        # 2. Save file content to file like object
+        # 3. Create model instance with file like object
+        # 4. Remove from S3?
+
+        media_transcoding_job = MediaTranscodingJob.objects.get(job_id=job_id)
+
+        # Remove 's3://bucket-name/' prefix to get just the key
+        # Assuming format: s3://bucket/key/path
+        s3_full_path = job_metadata[0].get("outputFilePaths", [])[0]
+        video_details = job_metadata[0].get("videoDetails", {})
+
+        s3_key = s3_full_path.split("/", 3)[3]  # Gets 'media/transcoded/video.mp4'
+
+        # Create format spec
+        format_spec = {
+            "width": video_details.get("widthInPx"),
+            "height": video_details.get("heightInPx"),
+            "duration_ms": job_metadata[0].get("durationInMs"),
+        }
+
+        # Create the MediaRendition linked to the media from the job
+        rendition = MediaRendition.objects.create(
+            media=media_transcoding_job.media,  # ← From the job you already fetched
+            format_spec=format_spec,
+            file=s3_key,  # Just the S3 key, not full s3:// URL
+        )
+
+        # Update the job to link the rendition
+        media_transcoding_job.rendition = rendition
+        media_transcoding_job.save()
 
     def _verify_api_key(self, request):
         """
