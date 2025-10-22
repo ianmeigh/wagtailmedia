@@ -135,14 +135,7 @@ class AWSTranscodingWebhookView(View):
         if status is TranscodingJobStatus.COMPLETE:
             self._create_rendition(job_id, job_metadata)
 
-        return JsonResponse(
-            {
-                "success": True,
-                "job_id": job_id,
-                "status": status,
-            },
-            status=200,
-        )
+        return JsonResponse({}, status=200)
 
     def _update_transcoding_job(self, job_id, job_status, job_metadata):
         media_transcoding_job = MediaTranscodingJob.objects.get(job_id=job_id)
