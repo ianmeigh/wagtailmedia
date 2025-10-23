@@ -133,15 +133,6 @@ class AWSTranscodingWebhookView(View):
         job_status = detail.get("status")
         job_metadata = {}
 
-        # When a completed MediaConvert event is sent it includes additional information
-        if detail.get("outputGroupDetails"):
-            try:
-                job_metadata = detail["outputGroupDetails"][0]["outputDetails"]
-                output_details = [OutputDetail.from_dict(item) for item in job_metadata]
-            except (KeyError, IndexError, TypeError) as e:
-                logger.warning("Webhook missing outputGroupDetails: %s", e)
-                return
-
         if not job_id or not job_status:
             logger.error(
                 "Webhook received with missing required fields",
@@ -168,6 +159,16 @@ class AWSTranscodingWebhookView(View):
                 job_status,
             )
             return JsonResponse({"error": f"Invalid status: {job_status}"}, status=400)
+
+        if status is TranscodingJobStatus.COMPLETE:
+            try:
+                job_metadata = detail["outputGroupDetails"][0]["outputDetails"]
+                output_details = [OutputDetail.from_dict(item) for item in job_metadata]
+            except (KeyError, IndexError, TypeError) as e:
+                logger.error("COMPLETE status but missing outputGroupDetails: %s", e)
+                return JsonResponse(
+                    {"error": "COMPLETE status requires outputGroupDetails"}, status=400
+                )
 
         logger.debug(
             "\033[92mWebhook received for Job ID: %s, status: %s, with metadata: %s\033[0m",
