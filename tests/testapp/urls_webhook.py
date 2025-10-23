@@ -1,0 +1,36 @@
+from django.conf import settings
+from django.urls import include, path
+from django.views.static import serve
+from wagtail import urls as wagtail_urls
+from wagtail.admin import urls as wagtailadmin_urls
+from wagtail.api.v2.router import WagtailAPIRouter
+from wagtail.documents import urls as wagtaildocs_urls
+
+from wagtailmedia.api.views import MediaAPIViewSet
+from wagtailmedia.views.webhooks import AWSTranscodingWebhookView
+
+
+api_router = WagtailAPIRouter("wagtailapi_v2")
+api_router.register_endpoint("media", MediaAPIViewSet)
+
+urlpatterns = [
+    path("admin/", include(wagtailadmin_urls)),
+    path("documents/", include(wagtaildocs_urls)),
+    path(
+        "aws-transcoding-test/",
+        AWSTranscodingWebhookView.as_view(),
+        name="aws_transcoding_webhook",
+    ),
+    path("api/", api_router.urls),
+    path("", include(wagtail_urls)),
+] + [
+    path(
+        f"{prefix.lstrip('/')}<path:path>",
+        serve,
+        kwargs={"document_root": document_root},
+    )
+    for prefix, document_root in (
+        (settings.STATIC_URL, settings.STATIC_ROOT),
+        (settings.MEDIA_URL, settings.MEDIA_ROOT),
+    )
+]
