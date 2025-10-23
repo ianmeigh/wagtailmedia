@@ -128,20 +128,20 @@ class AWSTranscodingWebhookView(View):
         )
 
         # If the transcoding job object is already complete, skip updating
-        if media_transcoding_job.status is not TranscodingJobStatus.COMPLETE:
-            self._update_transcoding_job(job_id, job_status, job_metadata)
+        if media_transcoding_job.status != TranscodingJobStatus.COMPLETE:
+            self._update_transcoding_job(job_id, status, job_metadata)
 
-        # If the response status will mark the transcoding as complete, also create the final rendition
-        if status is TranscodingJobStatus.COMPLETE:
-            self._create_rendition(job_id, job_metadata)
+            # If the response status will mark the transcoding as complete, also create the final rendition
+            if status is TranscodingJobStatus.COMPLETE:
+                self._create_rendition(job_id, job_metadata)
 
         return JsonResponse({}, status=200)
 
-    def _update_transcoding_job(self, job_id, job_status, job_metadata):
+    def _update_transcoding_job(self, job_id, status, job_metadata):
         media_transcoding_job = MediaTranscodingJob.objects.get(job_id=job_id)
 
         old_status = media_transcoding_job.status
-        media_transcoding_job.status = job_status
+        media_transcoding_job.status = status
         media_transcoding_job.metadata = job_metadata
         media_transcoding_job.save()
 
