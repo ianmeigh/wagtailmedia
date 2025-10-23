@@ -209,9 +209,7 @@ class AWSTranscodingWebhookView(View):
         # 3. Create model instance with file like object
         # 4. Remove from S3?
         try:
-            s3_full_path = output_detail.output_file_paths[
-                0
-            ]  # Remove [0] from job_metadata
+            s3_full_path = output_detail.output_file_paths[0]
             s3_key = s3_full_path.split("/", 3)[3]
         except (IndexError, TypeError) as e:
             logger.error("Failed to parse rendition data for job %s: %s", job_id, e)
