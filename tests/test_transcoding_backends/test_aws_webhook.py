@@ -231,6 +231,70 @@ class AWSTranscodingWebhookStatusMappingTests(TestCase):
         self.webhook_url = "/aws-transcoding-test/"
 
     @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    def test_valid_status_mappings_return_200(self):
+        """Test that all valid status strings are mapped correctly and return 200."""
+        valid_statuses = [
+            ("PROGRESSING", TranscodingJobStatus.PROGRESSING),
+            ("ERROR", TranscodingJobStatus.FAILED),
+            ("COMPLETE", TranscodingJobStatus.COMPLETE),
+        ]
+
+        for aws_status, expected_internal_status in valid_statuses:
+            with self.subTest(aws_status=aws_status):
+                job = MediaTranscodingJob.objects.create(
+                    media=self.media,
+                    job_id=f"test-job-{aws_status.lower()}",
+                    status=TranscodingJobStatus.PENDING,
+                    backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+                )
+
+                payload = {
+                    "version": "0",
+                    "id": "test-uuid",
+                    "detail": {
+                        "jobId": f"test-job-{aws_status.lower()}",
+                        "status": aws_status,
+                    },
+                }
+
+                # Add required outputGroupDetails for COMPLETE status
+                if aws_status == "COMPLETE":
+                    payload["detail"]["outputGroupDetails"] = [
+                        {
+                            "outputDetails": [
+                                {
+                                    "outputFilePaths": ["s3://bucket/media/test.mp4"],
+                                    "durationInMs": 5000,
+                                    "videoDetails": {
+                                        "widthInPx": 1920,
+                                        "heightInPx": 1080,
+                                    },
+                                }
+                            ]
+                        }
+                    ]
+
+                response = self.client.post(
+                    self.webhook_url,
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                    HTTP_X_API_KEY="valid-api-key",
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    response.json(),
+                    {
+                        "job_id": f"test-job-{aws_status.lower()}",
+                        "job_status": aws_status,
+                    },
+                )
+
+                # Verify the status was mapped and saved correctly
+                job.refresh_from_db()
+                self.assertEqual(job.status, expected_internal_status)
+
+    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
     def test_invalid_status_returns_400(self):
         """Test that invalid status string returns 400."""
         payload = {
