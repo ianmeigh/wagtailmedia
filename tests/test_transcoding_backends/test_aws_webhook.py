@@ -11,7 +11,7 @@ from wagtailmedia.models import (
 )
 
 
-@override_settings(ROOT_URLCONF="testapp.urls_webhook")
+@override_settings(ROOT_URLCONF="testapp.urls_aws_webhook")
 class AWSTranscodingWebhookAuthenticationTests(TestCase):
     """Tests for AWS webhook authentication logic."""
 
