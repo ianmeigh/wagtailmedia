@@ -219,7 +219,7 @@ EventBridge will forward MediaConvert job updates to your public webhook using a
 
 From the EventBridge dashboard, select API destinations and Create API Destination and complete the form. This details below document only the setting required by the backend; names and other values are intentionally left to your preference:
 
-- API destination endpoint - The public URL that will listen for the webhook, e.g. https://YOUR_HOSTNAME/media/webhooks/transcoding/
+- API destination endpoint - The public URL that will listen for the webhook, e.g. https://YOUR_HOSTNAME/media/webhooks/aws-transcoding/
 - HTTP Method - POST
 - Rate Limit (optional)
   - The default is 300 invocations per second

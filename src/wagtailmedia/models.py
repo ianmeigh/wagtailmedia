@@ -178,10 +178,51 @@ class MediaRendition(models.Model):
         related_name="renditions",
     )
 
-    format_spec = models.JSONField()
+    transcoding_job = models.ForeignKey(
+        "MediaTranscodingJob",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="renditions",
+    )
+
+    duration = models.FloatField(
+        blank=True,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name=_("duration"),
+        help_text=_("Duration in seconds"),
+    )
+    width = models.PositiveIntegerField(null=True, blank=True, verbose_name=_("width"))
+    height = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name=_("height")
+    )
+    bitrate = models.PositiveIntegerField(null=True, blank=True)
+
     file = models.FileField(upload_to="media", verbose_name=_("file"))
 
     created_at = models.DateTimeField(verbose_name=_("created at"), auto_now_add=True)
+
+    def __str__(self):
+        return self.filename + " (rendition)"
+
+    @property
+    def filename(self):
+        return os.path.basename(self.file.name)
+
+    @property
+    def type(self):
+        return self.media.type
+
+    @property
+    def sources(self):
+        return [
+            {
+                "src": self.url,
+                "type": mimetypes.guess_type(self.filename)[0]
+                or "application/octet-stream",
+            }
+        ]
 
     @property
     def url(self):
@@ -193,12 +234,7 @@ class MediaTranscodingJob(models.Model):
         wagtailmedia_settings.MEDIA_MODEL,
         on_delete=models.CASCADE,
     )
-    rendition = models.ForeignKey(
-        wagtailmedia_settings.MEDIA_RENDITION_MODEL,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-    )
+
     status = models.CharField(
         max_length=255,
         choices=TranscodingJobStatus.choices,
@@ -211,6 +247,9 @@ class MediaTranscodingJob(models.Model):
     metadata = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Job {self.job_id or self.pk} ({self.status})"
 
 
 def get_media_model():
