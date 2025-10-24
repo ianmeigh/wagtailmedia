@@ -569,7 +569,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
     @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
     def test_missing_output_group_details_on_complete(self):
         """Test that COMPLETE status without outputGroupDetails causes an error."""
-        MediaTranscodingJob.objects.create(
+        job = MediaTranscodingJob.objects.create(
             media=self.media,
             job_id="test-job-complete-no-output-details",
             status=TranscodingJobStatus.PROGRESSING,
@@ -597,6 +597,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
         self.assertIn(
             "COMPLETE status requires outputGroupDetails", response.json()["error"]
         )
+        self.assertEqual(job.renditions.count(), 0)
 
     @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
     def test_missing_output_file_paths_in_metadata(self):
