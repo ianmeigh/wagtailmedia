@@ -2,7 +2,7 @@ from django.urls import path
 from wagtail.api.v2.router import WagtailAPIRouter
 
 from wagtailmedia.api.views import MediaAPIViewSet
-from wagtailmedia.views.webhooks import AWSTranscodingWebhookView
+from wagtailmedia.views.aws_webhooks import AWSTranscodingWebhookView
 
 
 api_router = WagtailAPIRouter("wagtailapi_v2")

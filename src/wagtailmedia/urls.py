@@ -24,7 +24,7 @@ app_name = "wagtailmedia"
 urlpatterns = []
 
 if wagtailmedia_settings.WEBHOOK_API_KEY:
-    from wagtailmedia.views.webhooks import AWSTranscodingWebhookView
+    from wagtailmedia.views.aws_webhooks import AWSTranscodingWebhookView
 
     urlpatterns.append(
         path(
