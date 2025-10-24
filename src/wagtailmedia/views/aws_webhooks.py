@@ -179,30 +179,28 @@ class AWSTranscodingWebhookView(View):
 
         # If the transcoding job object is already complete, skip updating
         if media_transcoding_job.status != TranscodingJobStatus.COMPLETE:
-            self._update_transcoding_job(job_id, status, job_metadata)
+            self._update_transcoding_job(media_transcoding_job, status, job_metadata)
 
             # If the response status will mark the transcoding as complete, also create the media renditions
             if status is TranscodingJobStatus.COMPLETE and output_details:
-                self._create_rendition(job_id, output_details[0])
+                self._create_rendition(media_transcoding_job, output_details[0])
 
         return JsonResponse({"job_id": job_id, "job_status": job_status}, status=200)
 
-    def _update_transcoding_job(self, job_id, status, job_metadata):
-        media_transcoding_job = MediaTranscodingJob.objects.get(job_id=job_id)
-
-        old_status = media_transcoding_job.status
-        media_transcoding_job.status = status
-        media_transcoding_job.metadata = job_metadata
-        media_transcoding_job.save()
+    def _update_transcoding_job(self, transcoding_job, status, job_metadata):
+        old_status = transcoding_job.status
+        transcoding_job.status = status
+        transcoding_job.metadata = job_metadata
+        transcoding_job.save()
 
         logger.info(
             "Updated job %s status from %s to %s",
-            job_id,
+            transcoding_job.job_id,
             old_status,
-            media_transcoding_job.status,
+            transcoding_job.status,
         )
 
-    def _create_rendition(self, job_id, output_detail: OutputDetail):
+    def _create_rendition(self, transcoding_job, output_detail: OutputDetail):
         # TODO: If storage backend not S3 (or same bucket) copy the file to the default storage backend
         # 1. Get backend (from django.core.files.storage import default_storage)
         # 2. Save file content to file like object
@@ -212,10 +210,12 @@ class AWSTranscodingWebhookView(View):
             s3_full_path = output_detail.output_file_paths[0]
             s3_key = s3_full_path.split("/", 3)[3]
         except (IndexError, TypeError) as e:
-            logger.error("Failed to parse rendition data for job %s: %s", job_id, e)
+            logger.error(
+                "Failed to parse rendition data for job %s: %s",
+                transcoding_job.job_id,
+                e,
+            )
             return
-
-        media_transcoding_job = MediaTranscodingJob.objects.get(job_id=job_id)
 
         # Extract output detail
         width = (
@@ -238,8 +238,8 @@ class AWSTranscodingWebhookView(View):
 
         # Create the MediaRendition linked to the media from the job
         MediaRendition.objects.create(
-            media=media_transcoding_job.media,
-            transcoding_job=media_transcoding_job,
+            media=transcoding_job.media,
+            transcoding_job=transcoding_job,
             file=s3_key,  # Just the S3 key, not full s3:// URL
             width=width,
             height=height,
