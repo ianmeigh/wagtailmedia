@@ -171,7 +171,7 @@ class AWSTranscodingWebhookView(View):
                 )
 
         logger.debug(
-            "\033[92mWebhook received for Job ID: %s, status: %s, with metadata: %s\033[0m",
+            "Webhook received for Job ID: %s, status: %s, with metadata: %s",
             job_id,
             job_status,
             job_metadata,
