@@ -24,9 +24,9 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class VideoDetails:
-    width_px: int | None = None
-    height_px: int | None = None
-    average_bitrate: int | None = None
+    width_px: int
+    height_px: int
+    average_bitrate: int
 
     @classmethod
     def from_dict(cls, data: dict):
@@ -51,9 +51,7 @@ class OutputDetail:
         return cls(
             output_file_paths=data.get("outputFilePaths", []),
             duration_ms=data.get("durationInMs", 0),
-            video_details=VideoDetails.from_dict(video_details_data)
-            if video_details_data
-            else None,
+            video_details=VideoDetails.from_dict(video_details_data),
         )
 
 
@@ -161,14 +159,8 @@ class AWSTranscodingWebhookView(View):
             return JsonResponse({"error": f"Invalid status: {job_status}"}, status=400)
 
         if status is TranscodingJobStatus.COMPLETE:
-            try:
-                job_metadata = detail["outputGroupDetails"][0]["outputDetails"]
-                output_details = [OutputDetail.from_dict(item) for item in job_metadata]
-            except (KeyError, IndexError, TypeError) as e:
-                logger.error("COMPLETE status but missing outputGroupDetails: %s", e)
-                return JsonResponse(
-                    {"error": "COMPLETE status requires outputGroupDetails"}, status=400
-                )
+            job_metadata = detail["outputGroupDetails"][0]["outputDetails"]
+            output_details = [OutputDetail.from_dict(item) for item in job_metadata]
 
         logger.debug(
             "Webhook received for Job ID: %s, status: %s, with metadata: %s",
@@ -182,7 +174,7 @@ class AWSTranscodingWebhookView(View):
             self._update_transcoding_job(media_transcoding_job, status, job_metadata)
 
             # If the response status will mark the transcoding as complete, also create the media renditions
-            if status is TranscodingJobStatus.COMPLETE and output_details:
+            if status is TranscodingJobStatus.COMPLETE:
                 self._create_rendition(media_transcoding_job, output_details[0])
 
         return JsonResponse({"job_id": job_id, "job_status": job_status}, status=200)
@@ -206,33 +198,13 @@ class AWSTranscodingWebhookView(View):
         # 2. Save file content to file like object
         # 3. Create model instance with file like object
         # 4. Remove from S3?
-        try:
-            s3_full_path = output_detail.output_file_paths[0]
-            s3_key = s3_full_path.split("/", 3)[3]
-        except (IndexError, TypeError) as e:
-            logger.error(
-                "Failed to parse rendition data for job %s: %s",
-                transcoding_job.job_id,
-                e,
-            )
-            return
+        s3_full_path = output_detail.output_file_paths[0]
+        s3_key = s3_full_path.split("/", 3)[3]
 
         # Extract output detail
-        width = (
-            output_detail.video_details.width_px
-            if output_detail.video_details
-            else None
-        )
-        height = (
-            output_detail.video_details.height_px
-            if output_detail.video_details
-            else None
-        )
-        bitrate = (
-            output_detail.video_details.average_bitrate
-            if output_detail.video_details
-            else None
-        )
+        width = output_detail.video_details.width_px
+        height = output_detail.video_details.height_px
+        bitrate = output_detail.video_details.average_bitrate
         # Convert duration from milliseconds to seconds
         duration = output_detail.duration_ms / 1000 if output_detail.duration_ms else 0
 
