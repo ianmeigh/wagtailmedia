@@ -205,3 +205,49 @@ class AWSTranscodingWebhookRequestParsingTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("Missing required fields", response.json()["error"])
+
+
+@override_settings(ROOT_URLCONF="testapp.urls_aws_webhook")
+class AWSTranscodingWebhookStatusMappingTests(TestCase):
+    """Tests for AWS webhook status mapping logic."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+
+        self.media = Media(
+            title="Test media file",
+            file=ContentFile("Test video content", name="test.mp4"),
+            type=MediaType.VIDEO,
+        )
+        self.media.save()
+
+        self.job = MediaTranscodingJob.objects.create(
+            media=self.media,
+            job_id="test-job",
+            status=TranscodingJobStatus.PENDING,
+            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+        )
+
+        self.webhook_url = "/aws-transcoding-test/"
+
+    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    def test_invalid_status_returns_400(self):
+        """Test that invalid status string returns 400."""
+        payload = {
+            "version": "0",
+            "id": "test-uuid",
+            "detail": {
+                "jobId": "test-job",
+                "status": "UNKNOWN_STATUS",
+            },
+        }
+
+        response = self.client.post(
+            self.webhook_url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            HTTP_X_API_KEY="valid-api-key",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid status", response.json()["error"])
