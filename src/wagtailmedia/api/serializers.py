@@ -59,3 +59,7 @@ class MediaItemSerializer(BaseSerializer):
     download_url = MediaDownloadUrlField()
     media_type = rest_framework.fields.CharField(source="type")
     renditions = MediaRenditionSerializer(many=True, read_only=True)
+    num_renditions = serializers.SerializerMethodField()
+
+    def get_num_renditions(self, obj):
+        return getattr(obj, "num_renditions", obj.renditions.count())
