@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     "wagtail.admin",
     "wagtail",
     "wagtail.search",
+    "django_tasks",
 ]
 
 
@@ -118,3 +119,10 @@ ALLOWED_HOSTS = ["*"]
 
 WAGTAIL_SITE_NAME = "Test Site"
 WAGTAILADMIN_BASE_URL = "http://localhost:8020"
+
+TASKS = {
+    "default": {
+        "BACKEND": "django_tasks.backends.immediate.ImmediateBackend",
+        "ENQUEUE_ON_COMMIT": False,
+    }
+}
