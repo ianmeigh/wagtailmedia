@@ -1,9 +1,11 @@
 import logging
 
+from django import VERSION as DJANGO_VERSION
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 
 from wagtailmedia.models import (
+    Media,
     MediaTranscodingJob,
     MediaType,
     TranscodingJobStatus,
@@ -18,6 +20,11 @@ from wagtailmedia.utils import get_media_transcoding_backend
 
 logger = logging.getLogger(__name__)
 
+if DJANGO_VERSION >= (6, 0):
+    from django.tasks import task
+else:
+    from django_tasks import task
+
 
 def delete_files(instance):
     # Pass false so FileField doesn't save the model.
@@ -30,7 +37,9 @@ def post_delete_file_cleanup(instance, **kwargs):
     transaction.on_commit(lambda: delete_files(instance))
 
 
-def transcode_video(instance):
+@task()
+def transcode_video(media_id):
+    instance = Media.objects.get(pk=media_id)
     backend_cls = get_media_transcoding_backend()
 
     if instance.type == MediaType.AUDIO or not backend_cls:
@@ -48,7 +57,7 @@ def transcode_video(instance):
 
     if existing_job:
         logger.info(
-            f"Skipping transcode for media {instance.id} ({instance.title}): "
+            f"Skipping transcode for media {instance.pk} ({instance.title}): "
             f"Job {existing_job.job_id} already {existing_job.status}"
         )
         return
@@ -65,14 +74,14 @@ def transcode_video(instance):
         transcoding_job.save()
 
         logger.info(
-            f"Started transcode job {transcoding_job.job_id} for media {instance.id}"
+            f"Started transcode job {transcoding_job.job_id} for media {instance.pk}"
         )
     except TranscodingError as err:
         logger.error(
-            f"Transcode failed for media {instance.id} ({instance.title}): {err}",
+            f"Transcode failed for media {instance.pk} ({instance.title}): {err}",
             exc_info=True,
             extra={
-                "media_id": instance.id,
+                "media_id": instance.pk,
                 "error_type": err.__class__.__name__,
             },
         )
@@ -103,8 +112,9 @@ def transcode_video(instance):
         raise
 
 
-def post_save_transcode_video(instance, **kwargs):
-    transaction.on_commit(lambda: transcode_video(instance))
+def post_save_transcode_video(instance, created, **kwargs):
+    if created:
+        transaction.on_commit(lambda: transcode_video.enqueue(instance.id))
 
 
 def register_signal_handlers():

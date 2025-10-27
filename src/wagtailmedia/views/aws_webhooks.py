@@ -6,6 +6,7 @@ import logging
 
 from dataclasses import dataclass
 
+from django import VERSION as DJANGO_VERSION
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -20,6 +21,12 @@ from wagtailmedia.settings import wagtailmedia_settings
 
 
 logger = logging.getLogger(__name__)
+
+
+if DJANGO_VERSION >= (6, 0):
+    from django.tasks import task
+else:
+    from django_tasks import task
 
 
 @dataclass
@@ -53,6 +60,40 @@ class OutputDetail:
             duration_ms=data.get("durationInMs", 0),
             video_details=VideoDetails.from_dict(video_details_data),
         )
+
+
+@task()
+def _create_rendition(transcoding_job_id, output_detail: dict):
+    # TODO: If storage backend not S3 (or same bucket) copy the file to the default storage backend
+    # 1. Get backend (from django.core.files.storage import default_storage)
+    # 2. Save file content to file like object
+    # 3. Create model instance with file like object
+    # 4. Remove from S3?
+    transcoding_job = MediaTranscodingJob.objects.get(pk=transcoding_job_id)
+
+    s3_full_path = output_detail["outputFilePaths"][0]
+    s3_key = s3_full_path.split("/", 3)[3]
+
+    # Extract output detail
+    video_details = output_detail.get("videoDetails", {})
+    width = video_details.get("widthInPx")
+    height = video_details.get("heightInPx")
+    bitrate = video_details.get("averageBitrate")
+    duration_ms = output_detail.get("durationInMs", 0)
+    duration = duration_ms / 1000 if duration_ms else 0
+
+    # Create the MediaRendition linked to the media from the job
+    rendition = MediaRendition.objects.create(
+        media=transcoding_job.media,
+        transcoding_job=transcoding_job,
+        file=s3_key,  # Just the S3 key, not full s3:// URL
+        width=width,
+        height=height,
+        duration=duration,
+        bitrate=bitrate,
+    )
+
+    logger.info("Created rendition (%s) for %s", rendition, rendition.media)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -160,7 +201,7 @@ class AWSTranscodingWebhookView(View):
 
         if status is TranscodingJobStatus.COMPLETE:
             job_metadata = detail["outputGroupDetails"][0]["outputDetails"]
-            output_details = [OutputDetail.from_dict(item) for item in job_metadata]
+            [OutputDetail.from_dict(item) for item in job_metadata]
 
         logger.debug(
             "Webhook received for Job ID: %s, status: %s, with metadata: %s",
@@ -175,7 +216,7 @@ class AWSTranscodingWebhookView(View):
 
             # If the response status will mark the transcoding as complete, also create the media renditions
             if status is TranscodingJobStatus.COMPLETE:
-                self._create_rendition(media_transcoding_job, output_details[0])
+                _create_rendition.enqueue(media_transcoding_job.pk, job_metadata[0])
 
         return JsonResponse({"job_id": job_id, "job_status": job_status}, status=200)
 
@@ -190,33 +231,6 @@ class AWSTranscodingWebhookView(View):
             transcoding_job.job_id,
             old_status,
             transcoding_job.status,
-        )
-
-    def _create_rendition(self, transcoding_job, output_detail: OutputDetail):
-        # TODO: If storage backend not S3 (or same bucket) copy the file to the default storage backend
-        # 1. Get backend (from django.core.files.storage import default_storage)
-        # 2. Save file content to file like object
-        # 3. Create model instance with file like object
-        # 4. Remove from S3?
-        s3_full_path = output_detail.output_file_paths[0]
-        s3_key = s3_full_path.split("/", 3)[3]
-
-        # Extract output detail
-        width = output_detail.video_details.width_px
-        height = output_detail.video_details.height_px
-        bitrate = output_detail.video_details.average_bitrate
-        # Convert duration from milliseconds to seconds
-        duration = output_detail.duration_ms / 1000 if output_detail.duration_ms else 0
-
-        # Create the MediaRendition linked to the media from the job
-        MediaRendition.objects.create(
-            media=transcoding_job.media,
-            transcoding_job=transcoding_job,
-            file=s3_key,  # Just the S3 key, not full s3:// URL
-            width=width,
-            height=height,
-            duration=duration,
-            bitrate=bitrate,
         )
 
     def _verify_api_key(self, request):
