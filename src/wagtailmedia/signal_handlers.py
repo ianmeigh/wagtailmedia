@@ -1,5 +1,6 @@
 import logging
 
+from django import VERSION as DJANGO_VERSION
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django_tasks import task
@@ -19,6 +20,11 @@ from wagtailmedia.utils import get_media_transcoding_backend
 
 
 logger = logging.getLogger(__name__)
+
+if DJANGO_VERSION >= (6, 0):
+    from django.tasks import task
+else:
+    from django_tasks import task
 
 
 def delete_files(instance):
