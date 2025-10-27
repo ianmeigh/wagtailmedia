@@ -14,6 +14,7 @@ class MediaAPIViewSet(BaseAPIViewSet):
         "height",
         "media_type",
         "collection",
+        "renditions",
     ]
     meta_fields = BaseAPIViewSet.meta_fields + [
         "tags",
