@@ -4,8 +4,6 @@ import hmac
 import json
 import logging
 
-from dataclasses import dataclass
-
 from django import VERSION as DJANGO_VERSION
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
@@ -27,39 +25,6 @@ if DJANGO_VERSION >= (6, 0):
     from django.tasks import task
 else:
     from django_tasks import task
-
-
-@dataclass
-class VideoDetails:
-    width_px: int
-    height_px: int
-    average_bitrate: int
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        """Create from AWS videoDetails dict."""
-        return cls(
-            width_px=data.get("widthInPx"),
-            height_px=data.get("heightInPx"),
-            average_bitrate=data.get("averageBitrate"),
-        )
-
-
-@dataclass
-class OutputDetail:
-    output_file_paths: list[str]
-    duration_ms: int | None = None
-    video_details: VideoDetails | None = None
-
-    @classmethod
-    def from_dict(cls, data: dict):
-        """Create from AWS outputDetails dict."""
-        video_details_data = data.get("videoDetails", {})
-        return cls(
-            output_file_paths=data.get("outputFilePaths", []),
-            duration_ms=data.get("durationInMs", 0),
-            video_details=VideoDetails.from_dict(video_details_data),
-        )
 
 
 @task()
@@ -200,8 +165,21 @@ class AWSTranscodingWebhookView(View):
             return JsonResponse({"error": f"Invalid status: {job_status}"}, status=400)
 
         if status is TranscodingJobStatus.COMPLETE:
-            job_metadata = detail["outputGroupDetails"][0]["outputDetails"]
-            [OutputDetail.from_dict(item) for item in job_metadata]
+            try:
+                job_metadata = detail["outputGroupDetails"][0]["outputDetails"]
+
+                if not job_metadata:
+                    raise ValueError("No output details in completed job")
+            except (KeyError, IndexError) as e:
+                logger.error(
+                    "Webhook for job %s reported COMPLETE but missing output details: %s",
+                    job_id,
+                    e,
+                )
+                return JsonResponse(
+                    {"error": "Invalid response structure for completed encoding"},
+                    status=400,
+                )
 
         logger.debug(
             "Webhook received for Job ID: %s, status: %s, with metadata: %s",
