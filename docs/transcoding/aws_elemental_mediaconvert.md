@@ -302,8 +302,8 @@ class BlogPageWithMedia(Page):
 ```
 
 The `MediaChooserPanel` accepts the `media_type` keyword argument (kwarg) to limit the types of media that can be chosen or uploaded.
-At the moment only "audio" (`MediaChooserPanel(media_type="audio")`) and "video" (`MediaChooserPanel(media_type="audio")`) are supported,
-and any other type will make the chooser behave as if it did not get any kwarg.
+
+At the moment only "audio" (`MediaChooserPanel(media_type="audio")`) and "video" (`MediaChooserPanel(media_type="audio")`) are supported, and any other type will make the chooser behave as if it did not get any kwarg.
 
 #### Name clash with Wagtail
 
