@@ -1,3 +1,18 @@
+# Working with Media Renditions
+
+## Overview
+
+Media renditions are transcoded versions of your original media files. When you upload a video or audio file, wagtailmedia can automatically create renditions in different formats, resolutions, or quality levels using a configured transcoding backend.
+
+**Why use renditions?**
+
+- Deliver media in formats optimized for different devices and browsers
+- Provide multiple quality levels for adaptive streaming
+- Reduce file sizes for faster loading
+- Ensure browser compatibility
+
+**Prerequisites:** Before using renditions, you need to configure a transcoding backend. Currently we support AWS Elemental MediaConvert, please see the [AWS Elemental MediaConvert setup](aws_elemental_mediaconvert.md) documentation.
+
 ## How to display a rendition
 
 ### As a regular Django field
@@ -83,3 +98,31 @@ class BlogPage(Page):
         FieldPanel("body"),
     ]
 ```
+
+## Troubleshooting
+
+### Renditions haven't been generated yet
+
+Renditions are created asynchronously after media is uploaded. If no renditions exist yet:
+
+- **Check transcoding status**: The media object may still be processing
+- **Implement fallback logic**: Always provide a fallback to the original media file
+
+Example with fallback:
+
+```python
+class MediaBlock(VideoChooserBlock):
+    def render_basic(self, value, context=None):
+        if value and (rendition := value.renditions.first()):
+            value = rendition
+        # If no rendition exists, value remains the original media
+        return super().render_basic(value, context)
+```
+
+### No renditions are being created
+
+If renditions are never generated:
+
+1. **Verify transcoding backend is configured**: Check your `WAGTAILMEDIA` settings include a valid `TRANSCODING_BACKEND`
+1. **Review backend-specific setup**: For AWS, verify IAM roles, S3 buckets, and MediaConvert access - see [AWS setup guide](aws_elemental_mediaconvert.md)
+1. **Check logs**: Look for transcoding errors in your Django logs or backend service logs
