@@ -311,60 +311,26 @@ See [README section] of the same name (../../README.md#name-clash-with-wagtail).
 
 ### In StreamField
 
-You can use `Media` in StreamField and add logic to retrieve the first rendition. To do this, you need
-to add a new block class that inherits from `wagtailmedia.blocks.AbstractMediaChooserBlock`
-and implement your own `render_basic` method.
+You can use `Media` in a StreamField and add logic to retrieve the first rendition. To do this, you need to add a new block class that inherits from `wagtailmedia.blocks.VideoChooserBlock` and extend the `render_basic` method to check for a rendition.
 
 Here is an example:
 
 ```python
 from django.db import models
-from django.forms.utils import flatatt
-from django.utils.html import format_html, format_html_join
 
 from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
-from wagtailmedia.blocks import AbstractMediaChooserBlock
+from wagtailmedia.blocks import VideoChooserBlock
 
 
-class TestMediaBlock(AbstractMediaChooserBlock):
+class MediaBlock(VideoChooserBlock):
     def render_basic(self, value, context=None):
-        if not value:
-            return ""
-
-        if rendition := value.renditions.first():
+        if value and (rendition := value.renditions.first()):
             value = rendition
-
-        if value.type == "video":
-            player_code = """
-            <div>
-                <video width="{1}" height="{2}" controls>
-                    {0}
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-            """
-        else:
-            player_code = """
-            <div>
-                <audio controls>
-                    {0}
-                    Your browser does not support the audio element.
-                </audio>
-            </div>
-            """
-
-        return format_html(
-            player_code,
-            format_html_join(
-                "\n", "<source{0}>", [[flatatt(s)] for s in value.sources]
-            ),
-            value.width,
-            value.height,
-        )
+        return super().render_basic(value, context)
 
 
 class BlogPage(Page):
@@ -374,7 +340,7 @@ class BlogPage(Page):
         [
             ("heading", blocks.CharBlock(classname="title", icon="title")),
             ("paragraph", blocks.RichTextBlock(icon="pilcrow")),
-            ("media", TestMediaBlock(icon="media")),
+            ("media", MediaBlock(icon="media")),
         ]
     )
 
