@@ -4,11 +4,11 @@ import hmac
 import json
 import logging
 
-from django import VERSION as DJANGO_VERSION
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
+from django_tasks import task
 
 from wagtailmedia.models import (
     MediaRendition,
@@ -19,12 +19,6 @@ from wagtailmedia.settings import wagtailmedia_settings
 
 
 logger = logging.getLogger(__name__)
-
-
-if DJANGO_VERSION >= (6, 0):
-    from django.tasks import task
-else:
-    from django_tasks import task
 
 
 @task()
