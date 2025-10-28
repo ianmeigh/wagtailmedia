@@ -182,7 +182,7 @@ class AWSTranscodingWebhookRequestParsingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Missing required fields", response.json()["error"])
+        self.assertIn("Missing required field", response.json()["error"])
 
     @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
     def test_missing_status_in_detail(self):
@@ -204,7 +204,7 @@ class AWSTranscodingWebhookRequestParsingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Missing required fields", response.json()["error"])
+        self.assertIn("Missing required field", response.json()["error"])
 
 
 @override_settings(ROOT_URLCONF="testapp.urls_aws_webhook")
@@ -268,6 +268,7 @@ class AWSTranscodingWebhookStatusMappingTests(TestCase):
                                     "videoDetails": {
                                         "widthInPx": 1920,
                                         "heightInPx": 1080,
+                                        "averageBitrate": 50000,
                                     },
                                 }
                             ]
@@ -346,6 +347,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
                             "videoDetails": {
                                 "widthInPx": 1920,
                                 "heightInPx": 1080,
+                                "averageBitrate": 5000,
                             },
                         }
                     ]
@@ -464,16 +466,25 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
             backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
         )
 
-        metadata = [
-            {
-                "outputFilePaths": ["s3://bucket/media/test.mp4"],
-                "durationInMs": 5000,
-                "videoDetails": {
-                    "widthInPx": 1920,
-                    "heightInPx": 1080,
-                },
-            }
-        ]
+        metadata = {
+            "jobId": "test-job-metadata",
+            "status": "COMPLETE",
+            "outputGroupDetails": [
+                {
+                    "outputDetails": [
+                        {
+                            "outputFilePaths": ["s3://bucket/media/test-video.mp4"],
+                            "durationInMs": 5000,
+                            "videoDetails": {
+                                "widthInPx": 1920,
+                                "heightInPx": 1080,
+                                "averageBitrate": 50000,
+                            },
+                        }
+                    ]
+                }
+            ],
+        }
 
         payload = {
             "version": "0",
@@ -481,7 +492,21 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
             "detail": {
                 "jobId": "test-job-metadata",
                 "status": "COMPLETE",
-                "outputGroupDetails": [{"outputDetails": metadata}],
+                "outputGroupDetails": [
+                    {
+                        "outputDetails": [
+                            {
+                                "outputFilePaths": ["s3://bucket/media/test-video.mp4"],
+                                "durationInMs": 5000,
+                                "videoDetails": {
+                                    "widthInPx": 1920,
+                                    "heightInPx": 1080,
+                                    "averageBitrate": 50000,
+                                },
+                            }
+                        ]
+                    }
+                ],
             },
         }
 
@@ -629,55 +654,3 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
 
         # Verify no rendition was created
         self.assertEqual(job.renditions.count(), 0)
-
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
-    def test_missing_video_details_in_metadata(self):
-        """Test that missing videoDetails is handled gracefully, creating rendition with None values."""
-        job = MediaTranscodingJob.objects.create(
-            media=self.media,
-            job_id="test-job-no-video-details",
-            status=TranscodingJobStatus.PROGRESSING,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
-        )
-
-        payload = {
-            "version": "0",
-            "id": "test-uuid",
-            "detail": {
-                "jobId": "test-job-no-video-details",
-                "status": "COMPLETE",
-                "outputGroupDetails": [
-                    {
-                        "outputDetails": [
-                            {
-                                "outputFilePaths": ["s3://bucket/media/test.mp4"],
-                                "durationInMs": 5000,
-                                # Missing videoDetails
-                            }
-                        ]
-                    }
-                ],
-            },
-        }
-
-        response = self.client.post(
-            self.webhook_url,
-            data=json.dumps(payload),
-            content_type="application/json",
-            HTTP_X_API_KEY="valid-api-key",
-        )
-
-        # Should return 200 and create rendition with None for video details
-        self.assertEqual(response.status_code, 200)
-
-        job.refresh_from_db()
-        self.assertEqual(job.status, TranscodingJobStatus.COMPLETE)
-
-        # Rendition should be created but with None values for width/height/bitrate
-        self.assertEqual(job.renditions.count(), 1)
-        rendition = job.renditions.first()
-        self.assertIsNone(rendition.width)
-        self.assertIsNone(rendition.height)
-        self.assertIsNone(rendition.bitrate)
-        self.assertEqual(rendition.duration, 5.0)  # Duration from durationInMs
-        self.assertEqual(rendition.file.name, "media/test.mp4")

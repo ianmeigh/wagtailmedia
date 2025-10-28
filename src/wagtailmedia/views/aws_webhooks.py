@@ -4,6 +4,8 @@ import hmac
 import json
 import logging
 
+from dataclasses import dataclass
+
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -21,8 +23,138 @@ from wagtailmedia.settings import wagtailmedia_settings
 logger = logging.getLogger(__name__)
 
 
+class WebhookValidationError(Exception):
+    """Raised when webhook data fails validation."""
+
+    pass
+
+
+@dataclass
+class OutputDetail:
+    """Represents the first outputDetails item from aAWS MediaConvert webhook with a status of COMPLETE."""
+
+    output_file_path: str
+    duration_ms: int
+    width_px: int
+    height_px: int
+    average_bitrate: int
+
+    @classmethod
+    def from_webhook_detail(cls, detail: dict) -> OutputDetail:
+        """
+        Parse and validate the first outputDetails item from AWS webhook detail.
+
+        Expects detail to have structure:
+        {
+            'timestamp': 0,
+            'accountId': 'ACCOUNT_ID',
+            'queue': 'arn:aws:mediaconvert:AWS_REGION:AWS_ACCOUNT_ID:queues/Default',
+            'jobId': 'JOB_ID',
+            'status': 'PROGRESSING/COMPLETE/ERROR',
+            'userMetadata': {}
+            'outputGroupDetails': [{
+                'outputDetails': [{
+                    'outputFilePaths': ['s3://FILE_PATH'],
+                    'durationInMs': 0,
+                    'videoDetails': {
+                        'widthInPx': 0,
+                        'heightInPx': 0,
+                        'averageBitrate': 0
+                    }
+                }],
+                'type': 'FILE_GROUP'
+            }],
+            'paddingInserted': 0,
+            'blackVideoDetected': 0
+        }
+
+        Raises:
+            WebhookValidationError: If structure is invalid or missing required fields
+        """
+        try:
+            output_item = detail["outputGroupDetails"][0]["outputDetails"][0]
+            output_paths = output_item["outputFilePaths"]
+
+            if not output_paths or not isinstance(output_paths, list):
+                raise WebhookValidationError("outputFilePaths must be a non-empty list")
+
+            video_details = output_item["videoDetails"]
+
+            return cls(
+                output_file_path=output_paths[0],
+                duration_ms=output_item["durationInMs"],
+                width_px=video_details["widthInPx"],
+                height_px=video_details["heightInPx"],
+                average_bitrate=video_details["averageBitrate"],
+            )
+        except (KeyError, IndexError, TypeError) as e:
+            raise WebhookValidationError(
+                f"Invalid COMPLETE webhook structure: {e}"
+            ) from e
+
+
+@dataclass
+class WebhookPayload:
+    """
+    Parse and validate AWS MediaConvert webhook payload.
+
+    Expects structure:
+    {
+        'version': '0',
+        'id': 'UUID',
+        'detail-type': 'MediaConvert Job State Change',
+        'source': 'aws.mediaconvert',
+        'account': 'ACCOUNT_ID',
+        'time': '1970-01-01T00:00:00Z',
+        'region': 'AWS_REGION',
+        'resources': ['arn:aws:mediaconvert:AWS_REGION:ACCOUNT_ID:jobs/JOB_ID'],
+        'detail': {
+            'timestamp': 0,
+            'jobId': 'JOB_ID',
+            'status': 'PROGRESSING/COMPLETE/ERROR'
+        }
+    }
+    """
+
+    job_id: str
+    status: str
+    detail: dict
+    output_detail: OutputDetail | None = None
+
+    @classmethod
+    def from_request_body(cls, body: bytes):
+        """Parse and validate entire webhook payload."""
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError as e:
+            raise WebhookValidationError(f"Invalid JSON: {e}") from e
+
+        try:
+            detail = payload["detail"]
+            job_id = detail["jobId"]
+            status = detail["status"]
+        except KeyError as e:
+            raise WebhookValidationError(f"Missing required field: {e}") from e
+
+        # Only validate output details if status is COMPLETE
+        output_detail = None
+        if status == "COMPLETE":
+            output_detail = OutputDetail.from_webhook_detail(detail)
+
+        return cls(
+            job_id=job_id, status=status, detail=detail, output_detail=output_detail
+        )
+
+
 @task()
-def _create_rendition(transcoding_job_id, output_detail: dict):
+def _create_rendition(
+    transcoding_job_id: int,
+    output_file_path: str,
+    duration_ms: int,
+    width: int,
+    height: int,
+    bitrate: int,
+):
     # TODO: If storage backend not S3 (or same bucket) copy the file to the default storage backend
     # 1. Get backend (from django.core.files.storage import default_storage)
     # 2. Save file content to file like object
@@ -30,22 +162,14 @@ def _create_rendition(transcoding_job_id, output_detail: dict):
     # 4. Remove from S3?
     transcoding_job = MediaTranscodingJob.objects.get(pk=transcoding_job_id)
 
-    s3_full_path = output_detail["outputFilePaths"][0]
-    s3_key = s3_full_path.split("/", 3)[3]
-
-    # Extract output detail
-    video_details = output_detail.get("videoDetails", {})
-    width = video_details.get("widthInPx")
-    height = video_details.get("heightInPx")
-    bitrate = video_details.get("averageBitrate")
-    duration_ms = output_detail.get("durationInMs", 0)
-    duration = duration_ms / 1000 if duration_ms else 0
+    s3_key = output_file_path.split("/", 3)[3]
+    duration = duration_ms / 1000
 
     # Create the MediaRendition linked to the media from the job
     rendition = MediaRendition.objects.create(
         media=transcoding_job.media,
         transcoding_job=transcoding_job,
-        file=s3_key,  # Just the S3 key, not full s3:// URL
+        file=s3_key,
         width=width,
         height=height,
         duration=duration,
@@ -67,40 +191,6 @@ class AWSTranscodingWebhookView(View):
         WAGTAILMEDIA = {
             "WEBHOOK_API_KEY": "API_KEY",  # For auth
         }
-
-    EventBridge Payload Format:
-        {
-            'version': '0',
-            'id': 'UUID',
-            'detail-type': 'MediaConvert Job State Change',
-            'source': 'aws.mediaconvert',
-            'account': 'ACCOUNT_ID',
-            'time': '1970-01-01T00:00:00Z',
-            'region': 'eu-west-2',
-            'resources': ['arn:aws:mediaconvert:eu-west-2:ACCOUNT_ID:jobs/JOB_ID'],
-            'detail': {
-                'timestamp': 0,
-                'accountId': 'ACCOUNT_ID',
-                'queue': 'arn:aws:mediaconvert:eu-west-2:182186043439:queues/Default',
-                'jobId': 'JOB_ID',
-                'status': 'PROGRESSING/COMPLETE/ERROR',
-                'userMetadata': {}
-                'outputGroupDetails': [{
-                    'outputDetails': [{
-                        'outputFilePaths': ['s3://FILE_PATH'],
-                        'durationInMs': 0,
-                        'videoDetails': {
-                            'widthInPx': 0,
-                            'heightInPx': 0,
-                            'averageBitrate': 0
-                        }
-                    }],
-                    'type': 'FILE_GROUP'
-                }],
-                'paddingInserted': 0,
-                'blackVideoDetected': 0
-            }
-        }
     """
 
     def post(self, request):
@@ -113,84 +203,67 @@ class AWSTranscodingWebhookView(View):
             )
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
-        # Parse request body
+        # Validate webhook
         try:
-            payload = json.loads(request.body)
-        except json.JSONDecodeError:
-            logger.error("Webhook received with invalid JSON")
-            return JsonResponse({"error": "Invalid JSON"}, status=400)
+            validated_payload = WebhookPayload.from_request_body(request.body)
+        except WebhookValidationError as e:
+            logger.error("Invalid webhook: %s", e)
+            return JsonResponse({"error": str(e)}, status=400)
 
-        # extract job data
+        # Get transcoding job
         try:
-            detail = payload["detail"]
-        except KeyError:
-            logger.error("Webhook received with missing 'detail' field")
-            return JsonResponse({"error": "Missing required field: detail"}, status=400)
-
-        job_id = detail.get("jobId")
-        job_status = detail.get("status")
-        job_metadata = {}
-
-        if not job_id or not job_status:
-            logger.error(
-                "Webhook received with missing required fields",
+            media_transcoding_job = MediaTranscodingJob.objects.get(
+                job_id=validated_payload.job_id
             )
-            return JsonResponse(
-                {"error": "Missing required fields: job_id and status"}, status=400
-            )
-
-        try:
-            media_transcoding_job = MediaTranscodingJob.objects.get(job_id=job_id)
         except MediaTranscodingJob.DoesNotExist:
-            logger.warning(
-                "Webhook received for unknown job_id: %s",
-                job_id,
+            logger.warning("Webhook for unknown job: %s", validated_payload.job_id)
+            return JsonResponse(
+                {"error": f"Job not found: {validated_payload.job_id}"}, status=404
             )
-            return JsonResponse({"error": f"Job not found: {job_id}"}, status=404)
 
         # Map external status to internal status
         try:
-            status = self._map_status(job_status)
+            status = self._map_status(validated_payload.status)
         except KeyError:
             logger.error(
                 "Webhook received with invalid status: %s",
-                job_status,
+                validated_payload.status,
             )
-            return JsonResponse({"error": f"Invalid status: {job_status}"}, status=400)
-
-        if status is TranscodingJobStatus.COMPLETE:
-            try:
-                job_metadata = detail["outputGroupDetails"][0]["outputDetails"]
-
-                if not job_metadata:
-                    raise ValueError("No output details in completed job")
-            except (KeyError, IndexError) as e:
-                logger.error(
-                    "Webhook for job %s reported COMPLETE but missing output details: %s",
-                    job_id,
-                    e,
-                )
-                return JsonResponse(
-                    {"error": "Invalid response structure for completed encoding"},
-                    status=400,
-                )
+            return JsonResponse(
+                {"error": f"Invalid status: {validated_payload.status}"}, status=400
+            )
 
         logger.debug(
             "Webhook received for Job ID: %s, status: %s, with metadata: %s",
-            job_id,
-            job_status,
-            job_metadata,
+            validated_payload.job_id,
+            validated_payload.status,
+            validated_payload.detail,
         )
 
         # If the transcoding job object is already complete, skip updating
         if media_transcoding_job.status != TranscodingJobStatus.COMPLETE:
-            self._update_transcoding_job(media_transcoding_job, status, job_metadata)
+            self._update_transcoding_job(
+                media_transcoding_job, status, validated_payload.detail
+            )
 
             # If the response status will mark the transcoding as complete, also create the media renditions
             if status is TranscodingJobStatus.COMPLETE:
-                _create_rendition.enqueue(media_transcoding_job.pk, job_metadata[0])
+                _create_rendition.enqueue(
+                    media_transcoding_job.pk,
+                    output_file_path=validated_payload.output_detail.output_file_path,
+                    duration_ms=validated_payload.output_detail.duration_ms,
+                    width=validated_payload.output_detail.width_px,
+                    height=validated_payload.output_detail.height_px,
+                    bitrate=validated_payload.output_detail.average_bitrate,
+                )
 
-        return JsonResponse({"job_id": job_id, "job_status": job_status}, status=200)
+        return JsonResponse(
+            {
+                "job_id": validated_payload.job_id,
+                "job_status": validated_payload.status,
+            },
+            status=200,
+        )
 
     def _update_transcoding_job(self, transcoding_job, status, job_metadata):
         old_status = transcoding_job.status
