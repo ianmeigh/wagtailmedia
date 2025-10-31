@@ -16,7 +16,9 @@ class AWSTranscodingConfigTests(TestCase):
     """Tests for AWS configuration management."""
 
     @override_settings(
-        AWS_STORAGE_BUCKET_NAME="test-bucket", AWS_MEDIACONVERT_ROLE_NAME="TestRole"
+        AWS_STORAGE_BUCKET_NAME="test-bucket",
+        AWS_MEDIACONVERT_ROLE_NAME="TestRole",
+        AWS_MEDIACONVERT_QUEUE_NAME="test-queue",
     )
     def test_valid_configuration_with_all_settings(self):
         """Test configuration loads successfully with all required settings."""
@@ -24,6 +26,7 @@ class AWSTranscodingConfigTests(TestCase):
 
         self.assertEqual(config.destination_bucket, "test-bucket")
         self.assertEqual(config.mediaconvert_role, "TestRole")
+        self.assertEqual(config.mediaconvert_queue, "test-queue")
 
     @override_settings(AWS_STORAGE_BUCKET_NAME=None)
     def test_missing_bucket_name_setting_raises_error(self):
@@ -46,6 +49,19 @@ class AWSTranscodingConfigTests(TestCase):
         config = AWSTranscodingConfig()
 
         self.assertEqual(config.mediaconvert_role, "MediaConvert_Default_Role")
+
+    @override_settings(AWS_STORAGE_BUCKET_NAME="test-bucket")
+    def test_default_mediaconvert_queue_used_when_not_specified(self):
+        """Test that AWS_MEDIACONVERT_QUEUE_NAME defaults to 'Default'."""
+        # Remove the setting if it exists
+        from django.conf import settings
+
+        if hasattr(settings, "AWS_MEDIACONVERT_QUEUE_NAME"):
+            delattr(settings, "AWS_MEDIACONVERT_QUEUE_NAME")
+
+        config = AWSTranscodingConfig()
+
+        self.assertEqual(config.mediaconvert_queue, "Default")
 
 
 class S3ServiceFileAvailabilityTests(TestCase):
@@ -114,6 +130,7 @@ class MediaConvertServiceTests(TestCase):
         """Set up test fixtures."""
         self.config = Mock(spec=AWSTranscodingConfig)
         self.config.mediaconvert_role = "MediaConvert_Default_Role"
+        self.config.mediaconvert_queue = "test-queue"
         self.service = MediaConvertService(self.config)
 
         self.mock_boto3 = Mock()
@@ -140,6 +157,7 @@ class MediaConvertServiceTests(TestCase):
         """Test that job parameters are assembled and passed to MediaConvert."""
         test_role_arn = "arn:aws:iam::123456789:role/MediaConvert_Default_Role"
         test_settings = {"OutputGroups": [], "Inputs": []}
+        test_queue = "test-queue"
 
         mock_mediaconvert = Mock()
         mock_mediaconvert.create_job.return_value = {"Job": {"Id": "job-12345"}}
@@ -155,7 +173,7 @@ class MediaConvertServiceTests(TestCase):
                 )
 
                 mock_mediaconvert.create_job.assert_called_once_with(
-                    Role=test_role_arn, Settings=test_settings
+                    Role=test_role_arn, Settings=test_settings, Queue=test_queue
                 )
 
                 self.assertEqual(result, {"Job": {"Id": "job-12345"}})
