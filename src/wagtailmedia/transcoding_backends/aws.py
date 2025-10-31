@@ -41,12 +41,16 @@ class AWSTranscodingConfig:
     Required Django settings:
         AWS_STORAGE_BUCKET_NAME: S3 bucket for transcoded files
         AWS_MEDIACONVERT_ROLE_NAME: IAM role name for MediaConvert (default: 'MediaConvert_Default_Role')
+        AWS_MEDIACONVERT_QUEUE_NAME: MediaConvert queue that will processes jobs (default: 'Default')
     """
 
     def __init__(self):
         self.destination_bucket = self._get_required_setting("AWS_STORAGE_BUCKET_NAME")
         self.mediaconvert_role = self._get_required_setting(
             "AWS_MEDIACONVERT_ROLE_NAME", "MediaConvert_Default_Role"
+        )
+        self.mediaconvert_queue = self._get_required_setting(
+            "AWS_MEDIACONVERT_QUEUE_NAME", "Default"
         )
 
     def _get_required_setting(self, setting_name: str, default=None):
@@ -286,7 +290,11 @@ class MediaConvertService:
         role_arn = self.get_role_arn()
 
         try:
-            response = mediaconvert.create_job(Role=role_arn, Settings=job_settings)
+            response = mediaconvert.create_job(
+                Role=role_arn,
+                Settings=job_settings,
+                Queue=self.config.mediaconvert_queue,
+            )
             return response
         except botocore_exceptions.ClientError as err:
             raise MediaConvertJobError(
