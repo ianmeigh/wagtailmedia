@@ -28,7 +28,11 @@ class AWSTranscodingConfigTests(TestCase):
         self.assertEqual(config.mediaconvert_role, "TestRole")
         self.assertEqual(config.mediaconvert_queue, "test-queue")
 
-    @override_settings(AWS_STORAGE_BUCKET_NAME=None)
+    @override_settings(
+        AWS_STORAGE_BUCKET_NAME=None,
+        AWS_MEDIACONVERT_ROLE_NAME="TestRole",
+        AWS_MEDIACONVERT_QUEUE_NAME="test-queue",
+    )
     def test_missing_bucket_name_setting_raises_error(self):
         """Test that missing AWS_STORAGE_BUCKET_NAME raises ImproperlyConfigured."""
         with self.assertRaises(ImproperlyConfigured) as err:
@@ -37,7 +41,10 @@ class AWSTranscodingConfigTests(TestCase):
         self.assertIn("AWS_STORAGE_BUCKET_NAME", str(err.exception))
         self.assertIn("required for AWS transcoding", str(err.exception))
 
-    @override_settings(AWS_STORAGE_BUCKET_NAME="test-bucket")
+    @override_settings(
+        AWS_STORAGE_BUCKET_NAME="test-bucket",
+        AWS_MEDIACONVERT_QUEUE_NAME="Default",
+    )
     def test_default_mediaconvert_role_used_when_not_specified(self):
         """Test that AWS_MEDIACONVERT_ROLE_NAME defaults to 'MediaConvert_Default_Role'."""
         # Remove the setting if it exists
@@ -50,7 +57,10 @@ class AWSTranscodingConfigTests(TestCase):
 
         self.assertEqual(config.mediaconvert_role, "MediaConvert_Default_Role")
 
-    @override_settings(AWS_STORAGE_BUCKET_NAME="test-bucket")
+    @override_settings(
+        AWS_STORAGE_BUCKET_NAME="test-bucket",
+        AWS_MEDIACONVERT_ROLE_NAME="MediaConvert_Default_Role",
+    )
     def test_default_mediaconvert_queue_used_when_not_specified(self):
         """Test that AWS_MEDIACONVERT_QUEUE_NAME defaults to 'Default'."""
         # Remove the setting if it exists
