@@ -13,6 +13,7 @@ from wagtail.admin.search import SearchArea
 from wagtail.admin.site_summary import SummaryItem
 from wagtail.admin.staticfiles import versioned_static
 from wagtail.admin.ui.tables import Column, TitleColumn
+from wagtail.admin.views.generic import IndexView
 from wagtail.admin.viewsets.model import ModelViewSet
 
 from wagtailmedia import admin_urls
@@ -46,8 +47,26 @@ def register_media_menu_item():
     )
 
 
+class JobIndexView(IndexView):
+    """
+    Custom index view for transcoding jobs that filters the queryset based on
+    collection-level permissions from the related Media objects.
+
+    This ensures users only see transcoding jobs for media files they have
+    permission to access, respecting collection ownership and user permissions.
+    """
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        accessible_media = self.permission_policy.media_permission_policy.instances_user_has_any_permission_for(
+            self.request.user, ["change", "delete"]
+        )
+        return qs.filter(media__in=accessible_media)
+
+
 class MediaTranscodingJobViewSet(ModelViewSet):
     model = MediaTranscodingJob
+    index_view_class = JobIndexView
     permission_policy = TranscodingJobPermissionPolicy(MediaTranscodingJob)
     icon = "cog"
     menu_label = "Transcoding Jobs"

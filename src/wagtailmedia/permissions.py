@@ -33,9 +33,9 @@ class TranscodingJobPermissionPolicy(BasePermissionPolicy):
         if action in ["add", "change", "delete"]:
             return False
 
-        # User can access jobs if they can view/change any media
+        # User can list jobs if they can change/delete any media
         return self.media_permission_policy.user_has_any_permission(
-            user, ["view", "change"]
+            user, ["change", "delete"]
         )
 
     def user_has_permission_for_instance(self, user, action, instance):
@@ -48,7 +48,7 @@ class TranscodingJobPermissionPolicy(BasePermissionPolicy):
 
         # Check permission on the related media object via the ForeignKey
         return self.media_permission_policy.user_has_permission_for_instance(
-            user, "view", instance.media
+            user, ["change", "delete"], instance.media
         )
 
     def instances_user_has_any_permission_for(self, user, actions):
@@ -56,14 +56,14 @@ class TranscodingJobPermissionPolicy(BasePermissionPolicy):
         Return a queryset of transcoding jobs the user has permission to access.
         """
 
-        # Get all media objects the user can access
+        # Get all media objects the user can see
         accessible_media = (
             self.media_permission_policy.instances_user_has_any_permission_for(
-                user, ["view", "change"]
+                user, ["change", "delete"]
             )
         )
 
-        # Filter jobs to only those related to accessible media
+        # Return only jobs related to accessible media
         return self.model.objects.filter(media__in=accessible_media)
 
     def users_with_any_permission(self, actions):
