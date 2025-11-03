@@ -13,6 +13,7 @@ from wagtail.models import Collection, GroupCollectionPermission
 from wagtail.test.utils import WagtailTestUtils
 
 from wagtailmedia import models
+from wagtailmedia.models import Media, MediaTranscodingJob
 
 
 class TestMediaIndexView(TestCase, WagtailTestUtils):
@@ -1126,3 +1127,36 @@ class TestUsageCount(TestCase, WagtailTestUtils):
     def test_usage_count_zero_appears(self):
         response = self.client.get(reverse("wagtailmedia:edit", args=(1,)))
         self.assertContains(response, "Used 0 times")
+
+
+class TestTranscodingJobIndexView(TestCase, WagtailTestUtils):
+    """Test the transcoding jobs index/listing view."""
+
+    def setUp(self):
+        self.login()
+
+        # Create some test jobs
+        self.media = Media.objects.create(title="Test media", duration=100)
+        self.job = MediaTranscodingJob.objects.create(
+            media=self.media,
+            status="pending",
+            backend="test_backend",
+            job_id="test-job",
+        )
+
+    def test_simple(self):
+        """Basic test that index page loads."""
+        response = self.client.get(reverse("jobs:index"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_shows_job_in_listing(self):
+        """Job appears in the listing."""
+        response = self.client.get(reverse("jobs:index"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "test-job")
+
+    def test_no_add_button(self):
+        """Index view should not have an 'Add' button (read-only)."""
+        response = self.client.get(reverse("jobs:index"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Add media transcoding job")
