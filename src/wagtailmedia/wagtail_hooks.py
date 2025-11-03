@@ -18,7 +18,7 @@ from wagtail.admin.viewsets.model import ModelViewSet
 from wagtailmedia import admin_urls
 from wagtailmedia.forms import GroupMediaPermissionFormSet
 from wagtailmedia.models import MediaTranscodingJob, get_media_model
-from wagtailmedia.permissions import permission_policy
+from wagtailmedia.permissions import TranscodingJobPermissionPolicy, permission_policy
 
 
 @hooks.register("register_admin_urls")
@@ -48,6 +48,7 @@ def register_media_menu_item():
 
 class MediaTranscodingJobViewSet(ModelViewSet):
     model = MediaTranscodingJob
+    permission_policy = TranscodingJobPermissionPolicy(MediaTranscodingJob)
     icon = "cog"
     menu_label = "Transcoding Jobs"
     menu_order = 300
