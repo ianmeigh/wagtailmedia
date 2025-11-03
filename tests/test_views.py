@@ -1215,3 +1215,50 @@ class TestTranscodingJobPermissionFiltering(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "public-job")
         self.assertNotContains(response, "private-job")
+
+
+class TestTranscodingJobInspectView(TestCase, WagtailTestUtils):
+    """Test the transcoding job inspect/detail view."""
+
+    def setUp(self):
+        self.login()
+
+        self.media = Media.objects.create(title="Test media", duration=100)
+        self.job = MediaTranscodingJob.objects.create(
+            media=self.media,
+            status="completed",
+            backend="test_backend",
+            job_id="test-job",
+        )
+
+    def test_inspect_view(self):
+        """Inspect view should display job details."""
+        response = self.client.get(reverse("jobs:inspect", args=[self.job.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "test-job")
+
+
+class TestTranscodingJobReadOnlyEnforcement(TestCase, WagtailTestUtils):
+    """Test that add/edit/delete views are not accessible."""
+
+    def setUp(self):
+        self.login()
+
+        self.media = Media.objects.create(title="Test media", duration=100)
+        self.job = MediaTranscodingJob.objects.create(
+            media=self.media, status="pending", backend="test", job_id="test-job"
+        )
+
+    def test_add_view_not_accessible(self):
+        """Add view should not be accessible."""
+        response = self.client.get(reverse("jobs:add"))
+        self.assertRedirects(response, reverse("wagtailadmin_home"), 302)
+
+    def test_edit_view_not_accessible(self):
+        """Edit view should not be accessible."""
+        response = self.client.get(reverse("jobs:edit", args=[self.job.pk]))
+        self.assertRedirects(response, reverse("wagtailadmin_home"), 302)
+
+    def test_delete_view_not_accessible(self):
+        response = self.client.get(reverse("jobs:delete", args=[self.job.pk]))
+        self.assertRedirects(response, reverse("wagtailadmin_home"), 302)
