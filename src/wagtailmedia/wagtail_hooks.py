@@ -12,10 +12,12 @@ from wagtail.admin.navigation import get_site_for_user
 from wagtail.admin.search import SearchArea
 from wagtail.admin.site_summary import SummaryItem
 from wagtail.admin.staticfiles import versioned_static
+from wagtail.admin.ui.tables import Column, TitleColumn
+from wagtail.admin.viewsets.model import ModelViewSet
 
 from wagtailmedia import admin_urls
 from wagtailmedia.forms import GroupMediaPermissionFormSet
-from wagtailmedia.models import get_media_model
+from wagtailmedia.models import MediaTranscodingJob, get_media_model
 from wagtailmedia.permissions import permission_policy
 
 
@@ -42,6 +44,35 @@ def register_media_menu_item():
         icon_name="media",
         order=300,
     )
+
+
+class MediaTranscodingJobViewSet(ModelViewSet):
+    model = MediaTranscodingJob
+    icon = "cog"
+    menu_label = "Transcoding Jobs"
+    menu_order = 300
+    add_to_admin_menu = True
+    form_fields = []
+    list_display = [
+        "job_id",
+        TitleColumn("media", label="Original media", url_name="wagtailmedia:edit"),
+        Column("backend_class_name", label="Backend"),
+        Column("status_title_case", label="Status"),
+        "created_at",
+    ]
+    ordering = ["-created_at"]
+    list_filter = ["status"]
+    search_fields = ["media__title"]
+    inspect_view_enabled = True
+    copy_view_enabled = False
+
+
+media_transcoding_job_viewset = MediaTranscodingJobViewSet("jobs")
+
+
+@hooks.register("register_admin_viewset")
+def register_viewset():
+    return media_transcoding_job_viewset
 
 
 class MediaSummaryItem(SummaryItem):
