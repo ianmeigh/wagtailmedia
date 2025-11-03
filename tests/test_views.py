@@ -1160,3 +1160,58 @@ class TestTranscodingJobIndexView(TestCase, WagtailTestUtils):
         response = self.client.get(reverse("jobs:index"))
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Add media transcoding job")
+
+
+class TestTranscodingJobPermissionFiltering(TestCase):
+    """Test that users only see jobs for media they have access to."""
+
+    def setUp(self):
+        User = get_user_model()
+
+        # Create collections
+        root_collection = Collection.get_first_root_node()
+        self.public_collection = root_collection.add_child(name="Public")
+        self.private_collection = root_collection.add_child(name="Private")
+
+        # Create user with access to public collection only
+        self.public_user = User.objects.create_user(
+            username="public_user", password="password"
+        )
+        public_group = Group.objects.create(name="Public viewers")
+        admin_permission = Permission.objects.get(
+            content_type__app_label="wagtailadmin", codename="access_admin"
+        )
+        view_permission = Permission.objects.get(
+            content_type__app_label="wagtailmedia", codename="change_media"
+        )
+        GroupCollectionPermission.objects.create(
+            group=public_group,
+            collection=self.public_collection,
+            permission=view_permission,
+        )
+        self.public_user.groups.add(public_group)
+        self.public_user.user_permissions.add(admin_permission)
+
+        # Create media and jobs
+        public_media = Media.objects.create(
+            title="Public Media", duration=100, collection=self.public_collection
+        )
+        private_media = Media.objects.create(
+            title="Private Media", duration=100, collection=self.private_collection
+        )
+
+        self.public_job = MediaTranscodingJob.objects.create(
+            media=public_media, status="pending", backend="test", job_id="public-job"
+        )
+        self.private_job = MediaTranscodingJob.objects.create(
+            media=private_media, status="pending", backend="test", job_id="private-job"
+        )
+
+    def test_user_sees_only_accessible_jobs(self):
+        """User should only see jobs for media they have collection access to."""
+        self.client.force_login(self.public_user)
+        response = self.client.get(reverse("jobs:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "public-job")
+        self.assertNotContains(response, "private-job")
