@@ -4,7 +4,6 @@ import importlib
 
 from typing import TYPE_CHECKING
 
-from django.core.exceptions import ImproperlyConfigured
 from django.forms.utils import flatatt
 from django.utils.html import format_html, format_html_join
 from django.utils.translation import gettext_lazy as _
@@ -60,18 +59,32 @@ def format_video_html(item: AbstractMedia) -> str:
 def import_transcoding_backend_class(
     backend_path: str | None,
 ) -> type[AbstractTranscodingBackend] | None:
+    """
+    Import a transcoding backend class from a dotted path.
+
+    Backend configuration is validated by Django system checks at startup.
+    This function performs the actual import at runtime.
+
+    Args:
+        backend_path: Dotted path to backend class (e.g., 'myapp.backends.MyBackend')
+
+    Returns:
+        Backend class or None if no path provided
+    """
     if not backend_path:
         return None
-    try:
-        module_path, class_name = backend_path.rsplit(".", 1)
-        module = importlib.import_module(module_path)
-        return getattr(module, class_name)
-    except (ModuleNotFoundError, AttributeError) as err:
-        raise ImproperlyConfigured(
-            f"Failed to import transcoding backend '{backend_path}': {err}"
-        ) from err
+
+    module_path, class_name = backend_path.rsplit(".", 1)
+    module = importlib.import_module(module_path)
+    return getattr(module, class_name)
 
 
 def get_media_transcoding_backend() -> type[AbstractTranscodingBackend] | None:
+    """
+    Get the configured transcoding backend class.
+
+    Returns:
+        Backend class or None if no backend is configured
+    """
     backend_path = getattr(wagtailmedia_settings, "TRANSCODING_BACKEND", None)
     return import_transcoding_backend_class(backend_path)
