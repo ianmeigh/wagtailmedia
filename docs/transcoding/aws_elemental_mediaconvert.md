@@ -259,7 +259,7 @@ Next complete the remaining pages to create the rule using the following details
 - API destination - Use an existing API destination (the one created in the [previous step](#create-the-eventbridge-connection--api-destination))
 - Execution role - Create a new role for this specific resource
 
-## 4. Additional Notes
+### Additional Notes
 
 - Always use the full S3 ARN (e.g., `arn:aws:s3:::YOUR_BUCKET_NAME/*`) in policies, not S3 URLs.
 - The `iam:PassRole` permission is required for the user or automation that submits jobs to MediaConvert.
