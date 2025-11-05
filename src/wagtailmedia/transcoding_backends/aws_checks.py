@@ -4,6 +4,8 @@ from django.conf import settings
 from django.core.checks import Error, Tags, Warning, register
 
 from wagtailmedia.settings import wagtailmedia_settings
+from wagtailmedia.transcoding_backends.aws import EMCTranscodingBackend
+from wagtailmedia.utils import get_media_transcoding_backend
 
 
 logger = logging.getLogger(__name__)
@@ -23,11 +25,14 @@ def check_aws_transcoding_backend_configuration(app_configs, **kwargs):
     """
     errors = []
 
-    # Only run checks if AWS backend is configured
+    # Only run checks if backend is configured
     backend_path = getattr(wagtailmedia_settings, "TRANSCODING_BACKEND", "")
+    if not backend_path:
+        return errors
 
-    if not backend_path or backend_path.split(".")[-1] != "EMCTranscodingBackend":
-        # AWS backend not configured, skip checks
+    # Only run checks if AWS backend is configured
+    backend = get_media_transcoding_backend()
+    if backend and not issubclass(backend, EMCTranscodingBackend):
         return errors
 
     # Check boto3 package available in environment

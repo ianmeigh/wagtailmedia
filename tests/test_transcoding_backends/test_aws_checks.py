@@ -5,20 +5,17 @@ from unittest.mock import Mock, patch
 from django.core.checks import Error, Warning
 from django.test import TestCase, override_settings
 
+from wagtailmedia.transcoding_backends.aws import EMCTranscodingBackend  # noqa: F401
 from wagtailmedia.transcoding_backends.aws_checks import (
     check_aws_transcoding_backend_configuration,
 )
 from wagtailmedia.transcoding_backends.base import AbstractTranscodingBackend
 
 
-class EMCTranscodingBackend(AbstractTranscodingBackend):
-    """Mock AWS transcoding backend for testing."""
+class NonAWSBackend(AbstractTranscodingBackend):
+    """Non AWS transcoding backend for testing."""
 
-    def start_transcode(self, media_file):
-        pass
-
-    def stop_transcode(self, task_id):
-        pass
+    pass
 
 
 class TestAWSTranscodingBackendChecks(TestCase):
@@ -32,7 +29,9 @@ class TestAWSTranscodingBackendChecks(TestCase):
         self.assertEqual(issues, [])
 
     @override_settings(
-        WAGTAILMEDIA={"TRANSCODING_BACKEND": "some.other.backend.NotAWSBackend"}
+        WAGTAILMEDIA={
+            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.NonAWSBackend"
+        }
     )
     def test_non_aws_backend_configured(self):
         """Test that checks are skipped when a non-AWS backend is configured."""
