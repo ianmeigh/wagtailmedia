@@ -29,6 +29,9 @@ class WebhookValidationError(Exception):
     pass
 
 
+AWS_STATUS_COMPLETE = "COMPLETE"
+
+
 @dataclass
 class OutputDetail:
     """Represents the first outputDetails item from aAWS MediaConvert webhook with a status of COMPLETE."""
@@ -138,7 +141,7 @@ class WebhookPayload:
 
         # Only validate output details if status is COMPLETE
         output_detail = None
-        if status == "COMPLETE":
+        if status == AWS_STATUS_COMPLETE:
             output_detail = OutputDetail.from_webhook_detail(detail)
 
         return cls(
