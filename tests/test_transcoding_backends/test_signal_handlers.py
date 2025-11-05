@@ -40,19 +40,20 @@ class TranscodeVideoTests(TestCase):
     def test_skips_transcoding_for_audio_media(self):
         """Test that non-video media types are skipped."""
         self.media.type = MediaType.AUDIO
+        self.media.save()
 
         with patch(
             "wagtailmedia.signal_handlers.get_media_transcoding_backend",
             return_value=self.mock_backend_cls,
         ):
-            transcode_video(self.media)
+            transcode_video.func(self.media.pk)
 
             self.mock_backend_cls.assert_not_called()
 
     @override_settings(WAGTAILMEDIA={"TRANSCODING_BACKEND": None})
     def test_skips_transcoding_when_no_backend_configured(self):
         """Test that transcoding is skipped when no backend is configured."""
-        transcode_video(self.media)
+        transcode_video.func(self.media.pk)
 
         self.mock_backend_cls.assert_not_called()
 
@@ -63,7 +64,7 @@ class TranscodeVideoTests(TestCase):
             "wagtailmedia.signal_handlers.get_media_transcoding_backend",
             return_value=self.mock_backend_cls,
         ):
-            transcode_video(self.media)
+            transcode_video.func(self.media.pk)
 
             self.mock_backend.start_transcode.assert_called_once()
             self.assertEqual(MediaTranscodingJob.objects.count(), 1)
@@ -72,7 +73,7 @@ class TranscodeVideoTests(TestCase):
             )
 
             with self.assertLogs("wagtailmedia.signal_handlers", level="INFO") as logs:
-                transcode_video(self.media)
+                transcode_video.func(self.media.pk)
 
                 self.assertEqual(MediaTranscodingJob.objects.count(), 1)
                 self.mock_backend.start_transcode.assert_called_once()
@@ -91,7 +92,7 @@ class TranscodeVideoTests(TestCase):
             "wagtailmedia.signal_handlers.get_media_transcoding_backend",
             return_value=self.mock_backend_cls,
         ):
-            transcode_video(self.media)
+            transcode_video.func(self.media.pk)
 
             # Verify backend was called with correct file
             self.mock_backend.start_transcode.assert_called_once_with(self.media.file)
@@ -117,7 +118,7 @@ class TranscodeVideoTests(TestCase):
             "wagtailmedia.signal_handlers.get_media_transcoding_backend",
             return_value=self.mock_backend_cls,
         ):
-            transcode_video(self.media)
+            transcode_video.func(self.media.pk)
 
             # Verify job was created and marked as failed using real database
             self.assertEqual(MediaTranscodingJob.objects.count(), 1)
@@ -136,7 +137,7 @@ class TranscodeVideoTests(TestCase):
             return_value=self.mock_backend_cls,
         ):
             with self.assertRaises(TranscodingConfigurationError):
-                transcode_video(self.media)
+                transcode_video.func(self.media.pk)
 
             # Verify no job persists in database
             self.assertEqual(MediaTranscodingJob.objects.count(), 0)
@@ -150,7 +151,7 @@ class TranscodeVideoTests(TestCase):
             return_value=self.mock_backend_cls,
         ):
             with self.assertRaises(ValueError):
-                transcode_video(self.media)
+                transcode_video.func(self.media.pk)
 
             # Verify job was created and marked as failed using real database
             self.assertEqual(MediaTranscodingJob.objects.count(), 1)

@@ -168,6 +168,8 @@ These permissions are required for the IAM user, group, or role that will submit
 You will need the Role ARN of your role in the [previous step](#create-the-mediaconvert-service-role). You can find this in the AWS console. It will look like:
 `arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/service-role/MediaConvert_Default_Role.`
 
+Change the `AWS_MEDIACONVERT_QUEUE_NAME` placeholder to the name of the AWS MediaConvert queue you want to processes jobs. Custom queues can be used to isolate events if the same AWS instance is used to host multiple projects which use AWS MediaConvert. If you are using any other queue than the `Default` queue, the queue name needs to be exposed to the app using the `AWS_MEDIACONVERT_QUEUE_NAME` setting.
+
 ```json
 {
   "Version": "2012-10-17",
@@ -196,7 +198,7 @@ You will need the Role ARN of your role in the [previous step](#create-the-media
         "mediaconvert:GetQueue",
         "mediaconvert:CreateJob"
       ],
-      "Resource": "arn:aws:mediaconvert:YOUR_AWS_REGION:YOUR_AWS_ACCOUNT_ID:queues/Default"
+      "Resource": "arn:aws:mediaconvert:YOUR_AWS_REGION:YOUR_AWS_ACCOUNT_ID:queues/AWS_MEDIACONVERT_QUEUE_NAME"
     },
     {
       "Sid": "AllowS3UploadAndDownload",
@@ -248,6 +250,7 @@ Next select to enter a custom pattern (JSON editor) and enter the policy below:
   "source": ["aws.mediaconvert"],
   "detail-type": ["MediaConvert Job State Change"],
   "detail": {
+    "queue": "arn:aws:mediaconvert:YOUR_AWS_REGION:YOUR_AWS_ACCOUNT_ID:queues/MEDIACONVERT_QUEUE_NAME",
     "status": ["PROGRESSING", "COMPLETE", "ERROR"]
   }
 }
