@@ -15,9 +15,9 @@ Media renditions are transcoded versions of your original media files. When you 
 
 ## How to display a rendition
 
-### As a regular Django field
+### As a Django field
 
-You can use `MediaRendition` as a regular Django field. Here’s an example:
+You can use `MediaRendition` as a Django field. Here’s an example:
 
 ```python
 from django.db import models
