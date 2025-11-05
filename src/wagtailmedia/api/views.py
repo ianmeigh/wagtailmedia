@@ -1,3 +1,4 @@
+from django.db.models import Count
 from wagtail.api.v2.filters import FieldsFilter, OrderingFilter, SearchFilter
 from wagtail.api.v2.views import BaseAPIViewSet
 
@@ -14,6 +15,8 @@ class MediaAPIViewSet(BaseAPIViewSet):
         "height",
         "media_type",
         "collection",
+        "renditions",
+        "num_renditions",
     ]
     meta_fields = BaseAPIViewSet.meta_fields + [
         "tags",
@@ -28,6 +31,7 @@ class MediaAPIViewSet(BaseAPIViewSet):
         "collection",
         "thumbnail",
         "download_url",
+        "num_renditions",
     ]
     nested_default_fields = BaseAPIViewSet.nested_default_fields + [
         "title",
@@ -36,3 +40,7 @@ class MediaAPIViewSet(BaseAPIViewSet):
     ]
     name = "media"
     model = get_media_model()
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.annotate(num_renditions=Count("renditions"))

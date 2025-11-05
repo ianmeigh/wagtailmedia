@@ -87,7 +87,16 @@ class TestApiMediaListing(ApiTestBase):
         for item in content["items"]:
             self.assertEqual(
                 set(item.keys()),
-                {"id", "meta", "title", "width", "height", "media_type", "collection"},
+                {
+                    "id",
+                    "meta",
+                    "title",
+                    "width",
+                    "height",
+                    "media_type",
+                    "collection",
+                    "num_renditions",
+                },
             )
             self.assertEqual(
                 set(item["meta"].keys()),
@@ -101,7 +110,16 @@ class TestApiMediaListing(ApiTestBase):
         for item in content["items"]:
             self.assertEqual(
                 set(item.keys()),
-                {"id", "meta", "title", "width", "height", "media_type", "collection"},
+                {
+                    "id",
+                    "meta",
+                    "title",
+                    "width",
+                    "height",
+                    "media_type",
+                    "collection",
+                    "num_renditions",
+                },
             )
             self.assertEqual(
                 set(item["meta"].keys()),
@@ -114,7 +132,8 @@ class TestApiMediaListing(ApiTestBase):
 
         for item in content["items"]:
             self.assertEqual(
-                set(item.keys()), {"id", "meta", "width", "height", "media_type"}
+                set(item.keys()),
+                {"id", "meta", "width", "height", "media_type", "num_renditions"},
             )
 
     def test_remove_meta_fields(self):
@@ -124,7 +143,16 @@ class TestApiMediaListing(ApiTestBase):
         for item in content["items"]:
             self.assertEqual(
                 set(item.keys()),
-                {"id", "meta", "title", "width", "height", "media_type", "collection"},
+                {
+                    "id",
+                    "meta",
+                    "title",
+                    "width",
+                    "height",
+                    "media_type",
+                    "collection",
+                    "num_renditions",
+                },
             )
             self.assertEqual(set(item["meta"].keys()), {"type", "detail_url", "tags"})
 
@@ -135,7 +163,15 @@ class TestApiMediaListing(ApiTestBase):
         for item in content["items"]:
             self.assertEqual(
                 set(item.keys()),
-                {"id", "title", "width", "height", "media_type", "collection"},
+                {
+                    "id",
+                    "title",
+                    "width",
+                    "height",
+                    "media_type",
+                    "collection",
+                    "num_renditions",
+                },
             )
 
     def test_remove_id_field(self):
@@ -145,7 +181,15 @@ class TestApiMediaListing(ApiTestBase):
         for item in content["items"]:
             self.assertEqual(
                 set(item.keys()),
-                {"meta", "title", "width", "height", "media_type", "collection"},
+                {
+                    "meta",
+                    "title",
+                    "width",
+                    "height",
+                    "media_type",
+                    "collection",
+                    "num_renditions",
+                },
             )
 
     def test_all_fields(self):
@@ -155,7 +199,17 @@ class TestApiMediaListing(ApiTestBase):
         for item in content["items"]:
             self.assertEqual(
                 set(item.keys()),
-                {"id", "meta", "title", "width", "height", "media_type", "collection"},
+                {
+                    "id",
+                    "meta",
+                    "title",
+                    "width",
+                    "height",
+                    "media_type",
+                    "collection",
+                    "renditions",
+                    "num_renditions",
+                },
             )
             self.assertEqual(
                 set(item["meta"].keys()),
@@ -169,7 +223,10 @@ class TestApiMediaListing(ApiTestBase):
         content = json.loads(response.content.decode("UTF-8"))
 
         for item in content["items"]:
-            self.assertEqual(set(item.keys()), {"id", "meta", "width", "height"})
+            self.assertEqual(
+                set(item.keys()),
+                {"id", "meta", "width", "height", "renditions", "num_renditions"},
+            )
             self.assertEqual(set(item["meta"].keys()), {"type", "detail_url", "tags"})
 
     def test_fields_tags(self):
