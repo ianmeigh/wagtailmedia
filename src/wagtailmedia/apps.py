@@ -14,7 +14,6 @@ class WagtailMediaAppConfig(AppConfig):
     verbose_name = "Wagtail media"
 
     def ready(self):
-        from django.conf import settings
         from wagtail.admin.compare import register_comparison_class
 
         from wagtailmedia.transcoding_backends.aws_checks import (
@@ -27,17 +26,6 @@ class WagtailMediaAppConfig(AppConfig):
         from .signal_handlers import register_signal_handlers
 
         register_signal_handlers()
-
-        # Register checks only if AWS backend is configured
-        wagtailmedia_settings = getattr(settings, "WAGTAILMEDIA", {})
-        backend_path = wagtailmedia_settings.get("TRANSCODING_BACKEND", "")
-        if (
-            isinstance(backend_path, str)
-            and backend_path.split(".")[-1] == "EMCTranscodingBackend"
-        ):
-            from wagtailmedia.transcoding_backends.aws_checks import (
-                check_aws_transcoding_backend_configuration,  # noqa: F401
-            )
 
         # Set up image ForeignKeys to use ImageFieldComparison as the comparison class
         # when comparing page revisions
