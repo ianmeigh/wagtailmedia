@@ -5,6 +5,7 @@ import json
 import logging
 
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
@@ -165,7 +166,8 @@ def _create_rendition(
     # 4. Remove from S3?
     transcoding_job = MediaTranscodingJob.objects.get(pk=transcoding_job_id)
 
-    s3_key = output_file_path.split("/", 3)[3]
+    o = urlparse(output_file_path)
+    s3_key = o.path.lstrip("/")
     duration = duration_ms / 1000
 
     # Create the MediaRendition linked to the media from the job
