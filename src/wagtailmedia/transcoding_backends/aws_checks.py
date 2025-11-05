@@ -30,6 +30,11 @@ def check_aws_transcoding_backend_configuration(app_configs, **kwargs):
     if not backend_path:
         return errors
 
+    # System check execution order isn't guaranteed, so this defensive check is required
+    # even though this is caught by the general transcoding backend checks
+    if type(backend_path) is not str:
+        return errors
+
     # Only run checks if AWS backend is configured
     backend = get_media_transcoding_backend()
     if backend and not issubclass(backend, EMCTranscodingBackend):
