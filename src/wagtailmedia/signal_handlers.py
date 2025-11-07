@@ -10,6 +10,7 @@ from wagtailmedia.models import (
     MediaType,
     TranscodingJobStatus,
     get_media_model,
+    get_media_rendition_model,
 )
 from wagtailmedia.transcoding_backends.base import (
     TranscodingConfigurationError,
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 def delete_files(instance):
     # Pass false so FileField doesn't save the model.
     instance.file.delete(False)
-    if instance.thumbnail:
+    if getattr(instance, "thumbnail", None):
         instance.thumbnail.delete(False)
 
 
@@ -114,5 +115,9 @@ def post_save_transcode_video(instance, created, **kwargs):
 
 def register_signal_handlers():
     Media = get_media_model()
+    MediaRendition = get_media_rendition_model()
+
     post_delete.connect(post_delete_file_cleanup, sender=Media)
     post_save.connect(post_save_transcode_video, sender=Media)
+
+    post_delete.connect(post_delete_file_cleanup, sender=MediaRendition)
