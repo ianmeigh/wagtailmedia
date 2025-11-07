@@ -5,8 +5,10 @@ from unittest.mock import Mock, patch
 from django.core.checks import Error, Warning
 from django.test import TestCase, override_settings
 
-from wagtailmedia.transcoding_backends.aws import EMCTranscodingBackend  # noqa: F401
-from wagtailmedia.transcoding_backends.aws_checks import (
+from wagtailmedia.transcoding_backends.aws.backend import (
+    EMCTranscodingBackend,  # noqa: F401
+)
+from wagtailmedia.transcoding_backends.aws.checks import (
     check_aws_transcoding_backend_configuration,
 )
 from wagtailmedia.transcoding_backends.base import AbstractTranscodingBackend
@@ -64,7 +66,6 @@ class TestAWSTranscodingBackendChecks(TestCase):
         """Test that missing boto3 raises an error."""
         issues = check_aws_transcoding_backend_configuration(app_configs=None)
         errors = [e for e in issues if isinstance(e, Error)]
-
         self.assertEqual(len(errors), 1)
         self.assertEqual(
             "boto3 is required for AWS transcoding backend but is not installed",

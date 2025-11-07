@@ -2,13 +2,13 @@ from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
-from wagtailmedia.transcoding_backends.aws import (
-    AWSTranscodingConfig,
+from wagtailmedia.transcoding_backends.aws.config import AWSTranscodingConfig
+from wagtailmedia.transcoding_backends.aws.exceptions import (
     IAMGetRoleError,
     MediaConvertJobError,
-    MediaConvertService,
-    S3Service,
 )
+from wagtailmedia.transcoding_backends.aws.mediaconvert import MediaConvertService
+from wagtailmedia.transcoding_backends.aws.s3 import S3Service
 
 
 class S3ServiceFileAvailabilityTests(TestCase):
@@ -93,7 +93,7 @@ class MediaConvertServiceTests(TestCase):
         self.mock_boto3.client.return_value = mock_iam
 
         with patch(
-            "wagtailmedia.transcoding_backends.aws.import_boto3",
+            "wagtailmedia.transcoding_backends.aws.mediaconvert.import_boto3",
             return_value=(self.mock_boto3, self.mock_botocore_exceptions),
         ):
             with self.assertRaises(IAMGetRoleError) as context:
@@ -111,7 +111,7 @@ class MediaConvertServiceTests(TestCase):
         self.mock_boto3.client.return_value = mock_mediaconvert
 
         with patch(
-            "wagtailmedia.transcoding_backends.aws.import_boto3",
+            "wagtailmedia.transcoding_backends.aws.mediaconvert.import_boto3",
             return_value=(self.mock_boto3, self.mock_botocore_exceptions),
         ):
             with patch.object(self.service, "get_role_arn", return_value=test_role_arn):
@@ -134,7 +134,7 @@ class MediaConvertServiceTests(TestCase):
         self.mock_boto3.client.return_value = mock_mediaconvert
 
         with patch(
-            "wagtailmedia.transcoding_backends.aws.import_boto3",
+            "wagtailmedia.transcoding_backends.aws.mediaconvert.import_boto3",
             return_value=(self.mock_boto3, self.mock_botocore_exceptions),
         ):
             with patch.object(

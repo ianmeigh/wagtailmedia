@@ -10,7 +10,7 @@ from wagtailmedia.models import (
     TranscodingJobStatus,
 )
 from wagtailmedia.signal_handlers import transcode_video
-from wagtailmedia.transcoding_backends.aws import MediaConvertJobError
+from wagtailmedia.transcoding_backends.aws.exceptions import MediaConvertJobError
 from wagtailmedia.transcoding_backends.base import TranscodingConfigurationError
 
 
