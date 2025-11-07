@@ -16,7 +16,7 @@ class WagtailMediaAppConfig(AppConfig):
     def ready(self):
         from wagtail.admin.compare import register_comparison_class
 
-        from wagtailmedia.transcoding_backends.aws_checks import (
+        from wagtailmedia.transcoding_backends.aws.checks import (
             check_aws_transcoding_backend_configuration,  # noqa: F401
         )
 

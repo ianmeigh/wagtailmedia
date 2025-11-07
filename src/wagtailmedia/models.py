@@ -1,3 +1,4 @@
+import logging
 import mimetypes
 import os.path
 
@@ -14,6 +15,9 @@ from wagtail.search import index
 from wagtail.search.queryset import SearchableQuerySetMixin
 
 from wagtailmedia.settings import wagtailmedia_settings
+
+
+logger = logging.getLogger(__name__)
 
 
 ALLOWED_EXTENSIONS_THUMBNAIL = ["gif", "jpg", "jpeg", "png", "webp"]
@@ -254,6 +258,24 @@ class MediaTranscodingJob(models.Model):
 
     def __str__(self):
         return f"Job {self.job_id or self.pk} ({self.status})"
+
+    def update_status(self, status: TranscodingJobStatus, metadata: dict | None = None):
+        """
+        Update transcoding job status (and optionally metadata).
+        """
+        old_status = self.status
+        self.status = status
+
+        if metadata is not None:
+            self.metadata = metadata
+
+        self.save(update_fields=["status", "metadata", "updated_at"])
+
+        logger.info(
+            "Updated job %s status from %s to %s", self.job_id, old_status, self.status
+        )
+
+        return self
 
 
 def get_media_model():

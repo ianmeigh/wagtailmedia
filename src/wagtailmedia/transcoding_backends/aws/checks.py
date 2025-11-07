@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.checks import Error, Tags, Warning, register
 
 from wagtailmedia.settings import wagtailmedia_settings
-from wagtailmedia.transcoding_backends.aws import EMCTranscodingBackend
+from wagtailmedia.transcoding_backends.aws.backend import EMCTranscodingBackend
 from wagtailmedia.utils import get_media_transcoding_backend
 
 
