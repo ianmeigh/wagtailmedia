@@ -275,5 +275,28 @@ def get_media_model():
     return media_model
 
 
+def get_media_rendition_model():
+    from django.apps import apps
+
+    from wagtailmedia.settings import wagtailmedia_settings
+
+    try:
+        app_label, model_name = wagtailmedia_settings.MEDIA_RENDITION_MODEL.split(".")
+    except AttributeError:
+        return MediaRendition
+    except ValueError as err:
+        raise ImproperlyConfigured(
+            "WAGTAILMEDIA[\"MEDIA_RENDITION_MODEL\"] must be of the form 'app_label.model_name'"
+        ) from err
+
+    media_rendition_model = apps.get_model(app_label, model_name)
+    if media_rendition_model is None:
+        raise ImproperlyConfigured(
+            f"WAGTAILMEDIA[\"MEDIA_RENDITION_MODEL\"] refers to model '{wagtailmedia_settings.MEDIA_RENDITION_MODEL}' that has not been installed"
+        )
+
+    return media_rendition_model
+
+
 # Provides `request` as an argument
 media_served = Signal()
