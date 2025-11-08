@@ -46,7 +46,7 @@ class AWSTranscodingWebhookAuthenticationTests(TestCase):
             },
         }
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_valid_api_key_in_x_api_key_header(self):
         """Test successful authentication with valid API key in X-API-Key header."""
         response = self.client.post(
@@ -59,7 +59,7 @@ class AWSTranscodingWebhookAuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(content, {"job_id": "test-job", "job_status": "PROGRESSING"})
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "invalid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="invalid-api-key")
     def test_invalid_api_key_returns_401(self):
         response = self.client.post(
             self.webhook_url,
@@ -71,7 +71,7 @@ class AWSTranscodingWebhookAuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertIn("Unauthorized", response.json()["error"])
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_missing_api_key_header_return_401(self):
         response = self.client.post(
             self.webhook_url,
@@ -131,7 +131,7 @@ class AWSTranscodingWebhookRequestParsingTests(TestCase):
             },
         }
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_invalid_json_in_request_body(self):
         """Test that malformed JSON returns 400."""
         response = self.client.post(
@@ -144,7 +144,7 @@ class AWSTranscodingWebhookRequestParsingTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("Invalid JSON", response.json()["error"])
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_missing_detail_key_in_payload(self):
         """Test that missing 'detail' key returns 400."""
         payload = {
@@ -162,7 +162,7 @@ class AWSTranscodingWebhookRequestParsingTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_missing_job_id_in_detail(self):
         """Test that missing 'jobId' in detail returns 400."""
         payload = {
@@ -184,7 +184,7 @@ class AWSTranscodingWebhookRequestParsingTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("Missing required field", response.json()["error"])
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_missing_status_in_detail(self):
         """Test that missing 'status' in detail returns 400."""
         payload = {
@@ -230,7 +230,7 @@ class AWSTranscodingWebhookStatusMappingTests(TestCase):
 
         self.webhook_url = "/aws-transcoding-test/"
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_valid_status_mappings_return_200(self):
         """Test that all valid status strings are mapped correctly and return 200."""
         valid_statuses = [
@@ -295,7 +295,7 @@ class AWSTranscodingWebhookStatusMappingTests(TestCase):
                 job.refresh_from_db()
                 self.assertEqual(job.status, expected_internal_status)
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_invalid_status_returns_400(self):
         """Test that invalid status string returns 400."""
         payload = {
@@ -334,7 +334,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
 
         self.webhook_url = "/aws-transcoding-test/"
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_status_transitions(self):
         """Test all valid status transitions."""
         complete_payload = {
@@ -420,7 +420,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
                 job.refresh_from_db()
                 self.assertEqual(job.status, expected_status)
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_job_already_complete_skips_update(self):
         """Test that webhook skips update when job is already COMPLETE."""
         job = MediaTranscodingJob.objects.create(
@@ -456,7 +456,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
         # updated_at should not change (job was not saved)
         self.assertEqual(job.updated_at, original_updated_at)
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_metadata_with_output_details_is_saved_when_job_complete(self):
         """Test that job metadata is saved correctly."""
         job = MediaTranscodingJob.objects.create(
@@ -522,7 +522,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.metadata, metadata)
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_rendition_created_with_correct_fields_on_job_completion(self):
         """Test that MediaRendition is created with width, height, duration, bitrate on COMPLETE."""
         job = MediaTranscodingJob.objects.create(
@@ -583,7 +583,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
         self.assertEqual(rendition.bitrate, 2500000)
         self.assertEqual(rendition.file.name, "media/transcoded/test-video.mp4")
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_progressing_status_does_not_create_rendition(self):
         """Test that PROGRESSING status does NOT create a rendition."""
         job = MediaTranscodingJob.objects.create(
@@ -619,7 +619,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
         # Verify no rendition was created
         self.assertEqual(job.renditions.count(), 0)
 
-    @override_settings(WAGTAILMEDIA={"WEBHOOK_API_KEY": "valid-api-key"})
+    @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_error_status_does_not_create_rendition(self):
         """Test that ERROR status does NOT create a rendition."""
         job = MediaTranscodingJob.objects.create(

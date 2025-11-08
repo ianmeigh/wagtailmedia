@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from django.conf import settings
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -18,7 +19,6 @@ from wagtailmedia.models import (
     MediaTranscodingJob,
     TranscodingJobStatus,
 )
-from wagtailmedia.settings import wagtailmedia_settings
 
 
 logger = logging.getLogger(__name__)
@@ -193,9 +193,7 @@ class AWSTranscodingWebhookView(View):
     job status.
 
     Configuration:
-        WAGTAILMEDIA = {
-            "WEBHOOK_API_KEY": "API_KEY",  # For auth
-        }
+        "AWS_WEBHOOK_API_KEY": "API_KEY",  # For auth
     """
 
     def post(self, request):
@@ -289,13 +287,11 @@ class AWSTranscodingWebhookView(View):
 
         Expects API key in X-API-Key header.
         """
-        expected_key = wagtailmedia_settings.WEBHOOK_API_KEY
+        expected_key = settings.AWS_WEBHOOK_API_KEY
 
         # URL pattern shouldn't have been included but just in case fail the verification
         if not expected_key:
-            logger.error(
-                "Webhook received but missing WEBHOOK_API_KEY in WAGTAIL_MEDIA settings"
-            )
+            logger.error("Webhook received but missing AWS_WEBHOOK_API_KEY in settings")
 
             return False
 
