@@ -1,7 +1,6 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
-from wagtailmedia.transcoding_backends.aws.config import AWSTranscodingConfig
 from wagtailmedia.transcoding_backends.aws.exceptions import S3UploadError
 from wagtailmedia.transcoding_backends.aws.utils import import_boto3
 
@@ -14,10 +13,6 @@ class S3Service:
     for transcoding, either by returning existing web URLs or uploading
     local files.
     """
-
-    def __init__(self, config: AWSTranscodingConfig):
-        """Initialise S3 service with configuration."""
-        self.config = config
 
     def upload_file(self, file, bucket_name: str, object_name: str):
         """

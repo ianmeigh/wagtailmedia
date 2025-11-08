@@ -2,7 +2,6 @@ from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
-from wagtailmedia.transcoding_backends.aws.config import AWSTranscodingConfig
 from wagtailmedia.transcoding_backends.aws.exceptions import (
     IAMGetRoleError,
     MediaConvertJobError,
@@ -22,9 +21,7 @@ class S3ServiceFileAvailabilityTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.config = Mock(spec=AWSTranscodingConfig)
-        self.config.destination_bucket = "test-bucket"
-        self.s3_service = S3Service(self.config)
+        self.s3_service = S3Service()
 
     def test_detects_web_url_as_web_accessible(self):
         """Test that HTTPS URLs are recognized as web-accessible."""
@@ -75,10 +72,10 @@ class MediaConvertServiceTests(TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.config = Mock(spec=AWSTranscodingConfig)
-        self.config.mediaconvert_role = "MediaConvert_Default_Role"
-        self.config.mediaconvert_queue = "test-queue"
-        self.service = MediaConvertService(self.config)
+        self.service = MediaConvertService(
+            role="MediaConvert_Default_Role",
+            queue="test-queue",
+        )
 
         self.mock_boto3 = Mock()
         self.mock_botocore_exceptions = Mock()

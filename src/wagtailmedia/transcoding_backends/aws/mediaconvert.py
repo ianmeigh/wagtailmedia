@@ -1,4 +1,3 @@
-from wagtailmedia.transcoding_backends.aws.config import AWSTranscodingConfig
 from wagtailmedia.transcoding_backends.aws.exceptions import (
     IAMGetRoleError,
     MediaConvertJobError,
@@ -87,9 +86,10 @@ class MediaConvertService:
     Manages MediaConvert job creation, IAM role resolution, and client initialization.
     """
 
-    def __init__(self, config: AWSTranscodingConfig):
+    def __init__(self, role, queue):
         """Initialise MediaConvert service with configuration."""
-        self.config = config
+        self.role = role
+        self.queue = queue
 
     def get_role_arn(self) -> str:
         """
@@ -109,11 +109,11 @@ class MediaConvertService:
         iam = boto3.client("iam")
 
         try:
-            response = iam.get_role(RoleName=self.config.mediaconvert_role)
+            response = iam.get_role(RoleName=self.role)
             return response["Role"]["Arn"]
         except botocore_exceptions.ClientError as err:
             raise IAMGetRoleError(
-                f"Failed to get IAM role '{self.config.mediaconvert_role}': {err}"
+                f"Failed to get IAM role '{self.role}': {err}"
             ) from err
 
     def create_transcode_job(
@@ -146,7 +146,7 @@ class MediaConvertService:
             response = mediaconvert.create_job(
                 Role=role_arn,
                 Settings=job_settings,
-                Queue=self.config.mediaconvert_queue,
+                Queue=self.queue,
             )
             return response
         except botocore_exceptions.ClientError as err:

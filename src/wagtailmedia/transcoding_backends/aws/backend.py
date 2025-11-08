@@ -1,4 +1,8 @@
-from wagtailmedia.transcoding_backends.aws.config import AWSTranscodingConfig
+from wagtailmedia.transcoding_backends.aws.config import (
+    AWS_MEDIACONVERT_QUEUE_NAME,
+    AWS_MEDIACONVERT_ROLE_NAME,
+    DESTINATION_BUCKET,
+)
 from wagtailmedia.transcoding_backends.aws.mediaconvert import (
     MediaConvertJobSettings,
     MediaConvertService,
@@ -17,9 +21,10 @@ class EMCTranscodingBackend(AbstractTranscodingBackend):
     def __init__(self):
         """Initialise the AWS transcoding backend."""
 
-        self.config = AWSTranscodingConfig()
-        self.s3_service = S3Service(self.config)
-        self.mediaconvert_service = MediaConvertService(self.config)
+        self.s3_service = S3Service()
+        self.mediaconvert_service = MediaConvertService(
+            role=AWS_MEDIACONVERT_ROLE_NAME, queue=AWS_MEDIACONVERT_QUEUE_NAME
+        )
         self.job_settings = MediaConvertJobSettings()
 
     def start_transcode(self, source_file) -> dict:
@@ -36,11 +41,11 @@ class EMCTranscodingBackend(AbstractTranscodingBackend):
 
         # Ensure file is publicly accessible
         source_url = self.s3_service.ensure_file_is_available(
-            source_file, self.config.destination_bucket
+            source_file, DESTINATION_BUCKET
         )
 
         # Build job settings
-        destination_url = f"s3://{self.config.destination_bucket}/"
+        destination_url = f"s3://{DESTINATION_BUCKET}/"
         job_settings = self.job_settings.webm_vp8_settings(source_url, destination_url)
 
         # Create transcode job
