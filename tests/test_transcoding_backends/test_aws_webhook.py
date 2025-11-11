@@ -82,7 +82,7 @@ class AWSTranscodingWebhookAuthenticationTests(TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertIn("Unauthorized", response.json()["error"])
 
-    @override_settings(WAGTAILMEDIA={})
+    @override_settings(AWS_WEBHOOK_API_KEY=None)
     def test_no_api_key_configured_in_settings_returns_401(self):
         """Test that webhook fails when no API key is configured in settings."""
         response = self.client.post(

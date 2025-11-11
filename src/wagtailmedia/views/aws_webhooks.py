@@ -287,7 +287,7 @@ class AWSTranscodingWebhookView(View):
 
         Expects API key in X-API-Key header.
         """
-        expected_key = settings.AWS_WEBHOOK_API_KEY
+        expected_key = getattr(settings, "AWS_WEBHOOK_API_KEY", None)
 
         # URL pattern shouldn't have been included but just in case fail the verification
         if not expected_key:
