@@ -63,7 +63,7 @@ sequenceDiagram
 - An AWS account with access to the web console and permissions to create IAM roles/policies, MediaConvert jobs, EventBridge rules/API Destinations, and S3 objects.
 - An IAM user, used to authenticate to AWS (using an access key) and assign policies to.
 - An S3 bucket for output media, and potentially input media too.
-- The public domain name your application will use when hosted (to allow webhooks to be received from AWS EventBridge).
+- The public domain name your application will use when hosted (to allow webhooks to be received from AWS EventBridge), or a publicly-accessible URL for local testing.
 
 ## Installation
 
