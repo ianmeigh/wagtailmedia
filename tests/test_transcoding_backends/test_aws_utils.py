@@ -2,7 +2,6 @@ import sys
 
 from unittest.mock import Mock, patch
 
-from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
 
 from wagtailmedia.transcoding_backends import aws_utils
@@ -46,4 +45,4 @@ class ImportBoto3Tests(TestCase):
         """Test that import_boto3 raises ImproperlyConfigured when boto3 is not available."""
 
         with patch.dict(sys.modules, {"boto3": None, "botocore.exceptions": None}):
-            self.assertRaises(ImproperlyConfigured, aws_utils.import_boto3)
+            self.assertRaises(ModuleNotFoundError, aws_utils.import_boto3)

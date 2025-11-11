@@ -1,9 +1,7 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
-
+from wagtailmedia.settings import wagtailmedia_settings
 from wagtailmedia.transcoding_backends.aws_utils import (
     import_boto3,
 )
@@ -32,49 +30,18 @@ class MediaConvertJobError(TranscodingError):
 
 
 class AWSTranscodingConfig:
-    """
-    Configuration management for AWS transcoding backend.
-
-    Loads and validates required Django settings for AWS MediaConvert
-    transcoding operations.
-
-    Required Django settings:
-        AWS_STORAGE_BUCKET_NAME: S3 bucket for transcoded files
-        AWS_MEDIACONVERT_ROLE_NAME: IAM role name for MediaConvert (default: 'MediaConvert_Default_Role')
-        AWS_MEDIACONVERT_QUEUE_NAME: MediaConvert queue that will processes jobs (default: 'Default')
-    """
-
     def __init__(self):
-        self.destination_bucket = self._get_required_setting("AWS_STORAGE_BUCKET_NAME")
-        self.mediaconvert_role = self._get_required_setting(
-            "AWS_MEDIACONVERT_ROLE_NAME", "MediaConvert_Default_Role"
+        self.destination_bucket = wagtailmedia_settings.AWS_STORAGE_BUCKET_NAME
+        self.mediaconvert_role = getattr(
+            wagtailmedia_settings,
+            "AWS_MEDIACONVERT_ROLE_NAME",
+            "MediaConvert_Default_Role",
         )
-        self.mediaconvert_queue = self._get_required_setting(
-            "AWS_MEDIACONVERT_QUEUE_NAME", "Default"
+        self.mediaconvert_queue = getattr(
+            wagtailmedia_settings,
+            "AWS_MEDIACONVERT_QUEUE_NAME",
+            "Default",
         )
-
-    def _get_required_setting(self, setting_name: str, default=None):
-        """
-        Get a Django setting with optional default value.
-
-        Args:
-            setting_name: Name of the Django setting to retrieve
-            default: Default value if setting is not found (None means required)
-
-        Returns:
-            Setting value from Django settings or default
-
-        Raises:
-            ImproperlyConfigured: If setting is None and no default provided
-        """
-        value = getattr(settings, setting_name, default)
-        if value is None:
-            # FIXME: Handle this in a system check rather than at runtime
-            raise ImproperlyConfigured(
-                f"{setting_name} is required for AWS transcoding. "
-                f"Please add it to your Django settings."
-            )
-        return value
 
 
 class S3Service:
@@ -344,7 +311,6 @@ class EMCTranscodingBackend(AbstractTranscodingBackend):
             S3UploadError: If file upload to S3 fails
             MediaConvertJobError: If job creation fails
             IAMGetRoleError: If IAM role cannot be retrieved
-            ImproperlyConfigured: If AWS configuration is invalid
         """
 
         # Ensure file is publicly accessible

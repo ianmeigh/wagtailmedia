@@ -3,8 +3,6 @@ import logging
 from django.apps import AppConfig
 from django.db.models import ForeignKey
 
-from wagtailmedia.utils import get_media_transcoding_backend
-
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +16,11 @@ class WagtailMediaAppConfig(AppConfig):
     def ready(self):
         from wagtail.admin.compare import register_comparison_class
 
+        from wagtailmedia.transcoding_backends.aws_checks import (
+            check_aws_transcoding_backend_configuration,  # noqa: F401
+        )
+
+        from .checks import check_transcoding_backend_configuration  # noqa: F401
         from .edit_handlers import MediaFieldComparison
         from .models import get_media_model
         from .signal_handlers import register_signal_handlers
@@ -29,11 +32,3 @@ class WagtailMediaAppConfig(AppConfig):
         register_comparison_class(
             ForeignKey, to=get_media_model(), comparison_class=MediaFieldComparison
         )
-
-        # Check for a transcoding backend in wagtailmedia settings
-        backend_cls = get_media_transcoding_backend()
-
-        if backend_cls is None:
-            logger.debug("No transcoding backend specified.")
-        else:
-            logger.debug(f"Using transcoding backend: {backend_cls.__name__}")
