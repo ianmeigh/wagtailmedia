@@ -77,7 +77,7 @@ class MediaTranscodingJobViewSet(ModelViewSet):
         "job_id",
         TitleColumn("media", label="Original media", url_name="wagtailmedia:edit"),
         Column("backend_class_name", label="Backend"),
-        Column("status_title_case", label="Status"),
+        Column("get_status_display", label="Status"),
         "created_at",
     ]
     ordering = ["-created_at"]
