@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from wagtailmedia.models import TranscodingJobStatus
@@ -13,7 +15,7 @@ class JobDetail:
     raw_detail: dict  # Full AWS response for metadata storage
 
     @classmethod
-    def from_eventbridge_webhook(cls, payload: dict) -> "JobDetail":
+    def from_eventbridge_webhook(cls, payload: dict) -> JobDetail:
         try:
             detail = payload["detail"]
             return cls(
@@ -25,7 +27,7 @@ class JobDetail:
             raise DataValidationError(f"Missing required field: {err}") from err
 
     @classmethod
-    def from_get_job_response(cls, response: dict) -> "JobDetail":
+    def from_get_job_response(cls, response: dict) -> JobDetail:
         try:
             job = response["Job"]
             return cls(
@@ -36,7 +38,7 @@ class JobDetail:
         except KeyError as err:
             raise DataValidationError(f"Missing required field: {err}") from err
 
-    def get_output_detail(self) -> "OutputDetail | None":
+    def get_output_detail(self) -> OutputDetail | None:
         """Extract output details regardless of source."""
         if self.status != "COMPLETE":
             return None
@@ -54,7 +56,7 @@ class OutputDetail:
     average_bitrate: int | None
 
     @classmethod
-    def from_detail_dict(cls, detail: dict) -> "OutputDetail":
+    def from_detail_dict(cls, detail: dict) -> OutputDetail:
         """
         Parse and validate the first outputDetails item from AWS webhook detail.
 
