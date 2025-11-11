@@ -12,7 +12,6 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from wagtailmedia.settings import wagtailmedia_settings
 from wagtailmedia.transcoding_backends.aws.exceptions import (
     DataValidationError,
     TranscodingJobNotFound,
@@ -71,11 +70,6 @@ class AWSTranscodingWebhookView(View):
     Webhook endpoint for receiving transcoding job status updates.
 
     This view handles POST requests from the AWS EventBridge API Destination to update job status.
-
-    Configuration:
-        WAGTAILMEDIA = {
-            "WEBHOOK_API_KEY": "API_KEY",  # For auth
-        }
 
     EventBridge Payload Format:
         {
