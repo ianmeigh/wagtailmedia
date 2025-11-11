@@ -12,11 +12,14 @@ from wagtail.admin.navigation import get_site_for_user
 from wagtail.admin.search import SearchArea
 from wagtail.admin.site_summary import SummaryItem
 from wagtail.admin.staticfiles import versioned_static
+from wagtail.admin.ui.tables import Column, TitleColumn
+from wagtail.admin.views.generic import IndexView
+from wagtail.admin.viewsets.model import ModelViewSet
 
 from wagtailmedia import admin_urls
 from wagtailmedia.forms import GroupMediaPermissionFormSet
-from wagtailmedia.models import get_media_model
-from wagtailmedia.permissions import permission_policy
+from wagtailmedia.models import MediaTranscodingJob, get_media_model
+from wagtailmedia.permissions import TranscodingJobPermissionPolicy, permission_policy
 
 
 @hooks.register("register_admin_urls")
@@ -42,6 +45,54 @@ def register_media_menu_item():
         icon_name="media",
         order=300,
     )
+
+
+class JobIndexView(IndexView):
+    """
+    Custom index view for transcoding jobs that filters the queryset based on
+    collection-level permissions from the related Media objects.
+
+    This ensures users only see transcoding jobs for media files they have
+    permission to access, respecting collection ownership and user permissions.
+    """
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        accessible_media = self.permission_policy.media_permission_policy.instances_user_has_any_permission_for(
+            self.request.user, ["change", "delete"]
+        )
+        return qs.filter(media__in=accessible_media)
+
+
+class MediaTranscodingJobViewSet(ModelViewSet):
+    model = MediaTranscodingJob
+    index_view_class = JobIndexView
+    permission_policy = TranscodingJobPermissionPolicy(MediaTranscodingJob)
+    icon = "cog"
+    menu_label = "Transcoding Jobs"
+    menu_order = 300
+    add_to_admin_menu = True
+    form_fields = []
+    list_display = [
+        "job_id",
+        TitleColumn("media", label="Original media", url_name="wagtailmedia:edit"),
+        Column("backend_class_name", label="Backend"),
+        Column("get_status_display", label="Status"),
+        "created_at",
+    ]
+    ordering = ["-created_at"]
+    list_filter = ["status"]
+    search_fields = ["media__title"]
+    inspect_view_enabled = True
+    copy_view_enabled = False
+
+
+media_transcoding_job_viewset = MediaTranscodingJobViewSet("jobs")
+
+
+@hooks.register("register_admin_viewset")
+def register_viewset():
+    return media_transcoding_job_viewset
 
 
 class MediaSummaryItem(SummaryItem):

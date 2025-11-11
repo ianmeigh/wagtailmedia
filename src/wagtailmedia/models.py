@@ -248,6 +248,10 @@ class MediaTranscodingJob(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def backend_class_name(self):
+        return self.backend.split(".")[-1]
+
     def __str__(self):
         return f"Job {self.job_id or self.pk} ({self.status})"
 

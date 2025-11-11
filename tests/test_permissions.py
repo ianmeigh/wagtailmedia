@@ -7,6 +7,8 @@ from wagtail.models import Collection, GroupCollectionPermission
 from wagtail.test.utils import WagtailTestUtils
 
 from wagtailmedia import models
+from wagtailmedia.models import Media, MediaTranscodingJob
+from wagtailmedia.permissions import TranscodingJobPermissionPolicy
 
 
 class TestMediaPermissions(TestCase):
@@ -200,3 +202,58 @@ class TestEditOnlyPermissions(TestCase, WagtailTestUtils):
         )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "wagtailmedia/media/confirm_delete.html")
+
+
+class TestTranscodingJobPermissionPolicy(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+
+        cls.administrator = User.objects.create_superuser(
+            username="administrator",
+            password="password",
+        )
+        cls.editor = User.objects.create_user(username="editor", password="password")
+        cls.editor.groups.add(Group.objects.get(name="Editors"))
+        cls.user = User.objects.create_user(username="user", password="password")
+
+        cls.accounts = [cls.administrator, cls.editor, cls.user]
+
+        # Create media and job for testing
+        cls.media = Media.objects.create(title="Test media", duration=100)
+        cls.job = MediaTranscodingJob.objects.create(
+            media=cls.media,
+            status="pending",
+            backend="test_backend",
+            job_id="test-job",
+        )
+
+        cls.policy = TranscodingJobPermissionPolicy(MediaTranscodingJob)
+
+    def test_policy_always_denies_add(self):
+        """Transcoding jobs are system-managed, so add is always denied."""
+        for account in self.accounts:
+            with self.subTest(account=account):
+                self.assertFalse(self.policy.user_has_permission(account, "add"))
+
+    def test_policy_always_denies_change(self):
+        """Transcoding jobs are system-managed, so change is always denied."""
+        for account in self.accounts:
+            with self.subTest(account=account):
+                self.assertFalse(self.policy.user_has_permission(account, "change"))
+
+    def test_policy_always_denies_delete(self):
+        """Transcoding jobs are system-managed, so delete is always denied."""
+        for account in self.accounts:
+            with self.subTest(account=account):
+                self.assertFalse(self.policy.user_has_permission(account, "delete"))
+
+    def test_policy_allows_view_for_users_with_media_access(self):
+        """Users who can view media can view transcoding jobs."""
+        for account in [self.administrator, self.editor]:
+            with self.subTest(account=account):
+                self.assertTrue(self.policy.user_has_permission(account, "view"))
+
+    def test_policy_denies_view_for_users_without_media_access(self):
+        """Users without media permissions cannot view transcoding jobs."""
+        self.assertFalse(self.policy.user_has_permission(self.user, "view"))

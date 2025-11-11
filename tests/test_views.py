@@ -13,6 +13,7 @@ from wagtail.models import Collection, GroupCollectionPermission
 from wagtail.test.utils import WagtailTestUtils
 
 from wagtailmedia import models
+from wagtailmedia.models import Media, MediaTranscodingJob
 
 
 class TestMediaIndexView(TestCase, WagtailTestUtils):
@@ -1126,3 +1127,138 @@ class TestUsageCount(TestCase, WagtailTestUtils):
     def test_usage_count_zero_appears(self):
         response = self.client.get(reverse("wagtailmedia:edit", args=(1,)))
         self.assertContains(response, "Used 0 times")
+
+
+class TestTranscodingJobIndexView(TestCase, WagtailTestUtils):
+    """Test the transcoding jobs index/listing view."""
+
+    def setUp(self):
+        self.login()
+
+        # Create some test jobs
+        self.media = Media.objects.create(title="Test media", duration=100)
+        self.job = MediaTranscodingJob.objects.create(
+            media=self.media,
+            status="pending",
+            backend="test_backend",
+            job_id="test-job",
+        )
+
+    def test_simple(self):
+        """Basic test that index page loads."""
+        response = self.client.get(reverse("jobs:index"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_shows_job_in_listing(self):
+        """Job appears in the listing."""
+        response = self.client.get(reverse("jobs:index"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "test-job")
+
+    def test_no_add_button(self):
+        """Index view should not have an 'Add' button (read-only)."""
+        response = self.client.get(reverse("jobs:index"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Add media transcoding job")
+
+
+class TestTranscodingJobPermissionFiltering(TestCase):
+    """Test that users only see jobs for media they have access to."""
+
+    def setUp(self):
+        User = get_user_model()
+
+        # Create collections
+        root_collection = Collection.get_first_root_node()
+        self.public_collection = root_collection.add_child(name="Public")
+        self.private_collection = root_collection.add_child(name="Private")
+
+        # Create user with access to public collection only
+        self.public_user = User.objects.create_user(
+            username="public_user", password="password"
+        )
+        public_group = Group.objects.create(name="Public viewers")
+        admin_permission = Permission.objects.get(
+            content_type__app_label="wagtailadmin", codename="access_admin"
+        )
+        view_permission = Permission.objects.get(
+            content_type__app_label="wagtailmedia", codename="change_media"
+        )
+        GroupCollectionPermission.objects.create(
+            group=public_group,
+            collection=self.public_collection,
+            permission=view_permission,
+        )
+        self.public_user.groups.add(public_group)
+        self.public_user.user_permissions.add(admin_permission)
+
+        # Create media and jobs
+        public_media = Media.objects.create(
+            title="Public Media", duration=100, collection=self.public_collection
+        )
+        private_media = Media.objects.create(
+            title="Private Media", duration=100, collection=self.private_collection
+        )
+
+        self.public_job = MediaTranscodingJob.objects.create(
+            media=public_media, status="pending", backend="test", job_id="public-job"
+        )
+        self.private_job = MediaTranscodingJob.objects.create(
+            media=private_media, status="pending", backend="test", job_id="private-job"
+        )
+
+    def test_user_sees_only_accessible_jobs(self):
+        """User should only see jobs for media they have collection access to."""
+        self.client.force_login(self.public_user)
+        response = self.client.get(reverse("jobs:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "public-job")
+        self.assertNotContains(response, "private-job")
+
+
+class TestTranscodingJobInspectView(TestCase, WagtailTestUtils):
+    """Test the transcoding job inspect/detail view."""
+
+    def setUp(self):
+        self.login()
+
+        self.media = Media.objects.create(title="Test media", duration=100)
+        self.job = MediaTranscodingJob.objects.create(
+            media=self.media,
+            status="completed",
+            backend="test_backend",
+            job_id="test-job",
+        )
+
+    def test_inspect_view(self):
+        """Inspect view should display job details."""
+        response = self.client.get(reverse("jobs:inspect", args=[self.job.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "test-job")
+
+
+class TestTranscodingJobReadOnlyEnforcement(TestCase, WagtailTestUtils):
+    """Test that add/edit/delete views are not accessible."""
+
+    def setUp(self):
+        self.login()
+
+        self.media = Media.objects.create(title="Test media", duration=100)
+        self.job = MediaTranscodingJob.objects.create(
+            media=self.media, status="pending", backend="test", job_id="test-job"
+        )
+
+    def test_add_view_not_accessible(self):
+        """Add view should not be accessible."""
+        response = self.client.get(reverse("jobs:add"))
+        self.assertRedirects(response, reverse("wagtailadmin_home"), 302)
+
+    def test_edit_view_not_accessible(self):
+        """Edit view should not be accessible."""
+        response = self.client.get(reverse("jobs:edit", args=[self.job.pk]))
+        self.assertRedirects(response, reverse("wagtailadmin_home"), 302)
+
+    def test_delete_view_not_accessible(self):
+        response = self.client.get(reverse("jobs:delete", args=[self.job.pk]))
+        self.assertRedirects(response, reverse("wagtailadmin_home"), 302)
