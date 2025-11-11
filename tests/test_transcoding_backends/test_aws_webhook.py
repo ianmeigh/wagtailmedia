@@ -315,7 +315,7 @@ class AWSTranscodingWebhookStatusMappingTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertIn("Invalid status", response.json()["error"])
+        self.assertIn("UNKNOWN_STATUS", response.json()["error"])
 
 
 @override_settings(ROOT_URLCONF="testapp.urls_aws_webhook")

@@ -21,7 +21,7 @@ app_name = "wagtailmedia"
 
 urlpatterns = []
 
-if settings.AWS_WEBHOOK_API_KEY:
+if getattr(settings, "AWS_WEBHOOK_API_KEY", None):
     from wagtailmedia.views.aws_webhooks import AWSTranscodingWebhookView
 
     urlpatterns.append(
