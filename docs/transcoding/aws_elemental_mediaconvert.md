@@ -88,7 +88,7 @@ Add the AWS MediaConvert backend to your `wagtailmedia` settings:
 # settings.py
 
 WAGTAILMEDIA = {
-    "TRANSCODING_BACKEND": "wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+    "TRANSCODING_BACKEND": "wagtailmedia.transcoding_backends.aws.backend.EMCTranscodingBackend",
 }
 ```
 
@@ -98,6 +98,7 @@ You can use a number of methods to specify [credentials for boto3](https://boto3
 
 - AWS_ACCESS_KEY_ID
 - AWS_SECRET_ACCESS_KEY
+- AWS_DEFAULT_REGION
 
 #### S3 bucket name
 
