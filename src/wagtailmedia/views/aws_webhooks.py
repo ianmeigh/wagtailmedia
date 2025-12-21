@@ -12,12 +12,12 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
-from wagtailmedia.transcoding_backends.aws.exceptions import (
+from wagtailmedia.transcoding_backends.aws.backend import (
     DataValidationError,
+    JobDetail,
     TranscodingJobNotFound,
+    process_aws_job_status_update,
 )
-from wagtailmedia.transcoding_backends.aws.parsers import JobDetail
-from wagtailmedia.transcoding_backends.aws.services import process_aws_job_status_update
 
 
 logger = logging.getLogger(__name__)
