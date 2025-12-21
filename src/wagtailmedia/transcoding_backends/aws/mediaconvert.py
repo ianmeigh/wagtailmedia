@@ -1,8 +1,13 @@
+import botocore.exceptions as botocore_exceptions
+
+from wagtailmedia.transcoding_backends.aws.clients import (
+    get_iam_client,
+    get_mediaconvert_client,
+)
 from wagtailmedia.transcoding_backends.aws.exceptions import (
     IAMGetRoleError,
     MediaConvertJobError,
 )
-from wagtailmedia.transcoding_backends.aws.utils import import_boto3
 
 
 class MediaConvertJobSettings:
@@ -105,11 +110,10 @@ class MediaConvertService:
             IAMGetRoleError: If role cannot be found or IAM access is denied
         """
 
-        boto3, botocore_exceptions = import_boto3()
-        iam = boto3.client("iam")
+        iam_client = get_iam_client()
 
         try:
-            response = iam.get_role(RoleName=self.role)
+            response = iam_client.get_role(RoleName=self.role)
             return response["Role"]["Arn"]
         except botocore_exceptions.ClientError as err:
             raise IAMGetRoleError(
@@ -137,8 +141,7 @@ class MediaConvertService:
             MediaConvertJobError: If job creation fails (invalid settings, permissions, etc.)
         """
 
-        boto3, botocore_exceptions = import_boto3()
-        mediaconvert = boto3.client("mediaconvert")
+        mediaconvert = get_mediaconvert_client()
 
         role_arn = self.get_role_arn()
 

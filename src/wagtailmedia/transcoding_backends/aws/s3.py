@@ -1,8 +1,10 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
+import botocore.exceptions as botocore_exceptions
+
+from wagtailmedia.transcoding_backends.aws.clients import get_s3_client
 from wagtailmedia.transcoding_backends.aws.exceptions import S3UploadError
-from wagtailmedia.transcoding_backends.aws.utils import import_boto3
 
 
 class S3Service:
@@ -27,12 +29,11 @@ class S3Service:
             dict: S3 put_object response
         """
 
-        boto3, self.botocore_exceptions = import_boto3()
-        s3 = boto3.client("s3")
+        s3_client = get_s3_client()
 
         try:
-            return s3.put_object(Body=file, Bucket=bucket_name, Key=object_name)
-        except self.botocore_exceptions.ClientError as err:
+            return s3_client.put_object(Body=file, Bucket=bucket_name, Key=object_name)
+        except botocore_exceptions.ClientError as err:
             raise S3UploadError(f"Failed to upload file to S3: {err}") from err
 
     def ensure_file_is_available(self, source_file, bucket_name: str) -> str:

@@ -57,7 +57,7 @@ def check_aws_transcoding_backend_configuration(app_configs, **kwargs):
 
     # Check required settings for AWS transcoding
     required_settings = {
-        "AWS_STORAGE_BUCKET_NAME": (
+        "AWS_MEDIACONVERT_DESTINATION_BUCKET": (
             "Destination S3 bucket for transcoded media files. "
             "This bucket will store the output of MediaConvert jobs."
         ),
