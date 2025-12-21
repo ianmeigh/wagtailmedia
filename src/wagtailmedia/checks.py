@@ -31,7 +31,7 @@ def check_transcoding_backend_configuration(app_configs, **kwargs):
     if not backend_path:
         return errors
 
-    if type(backend_path) is not str:
+    if not isinstance(backend_path, str):
         errors.append(
             Error(
                 "Cannot import backend module",

@@ -32,7 +32,7 @@ def check_aws_transcoding_backend_configuration(app_configs, **kwargs):
 
     # System check execution order isn't guaranteed, so this defensive check is required
     # even though this is caught by the general transcoding backend checks
-    if type(backend_path) is not str:
+    if not isinstance(backend_path, str):
         return errors
 
     # Only run checks if AWS backend is configured
