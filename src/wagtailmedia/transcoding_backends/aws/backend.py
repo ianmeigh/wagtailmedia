@@ -92,8 +92,13 @@ class JobDetail:
         except KeyError as err:
             raise DataValidationError(f"Missing required field: {err}") from err
 
-    def get_output_detail(self) -> OutputDetail | None:
-        """Extract output details regardless of source."""
+    @property
+    def output_detail(self) -> OutputDetail | None:
+        """
+        Extract output details from completed jobs.
+
+        Returns None for jobs that are not in COMPLETE status.
+        """
         if self.status != "COMPLETE":
             return None
         return OutputDetail.from_detail_dict(self.raw_detail)

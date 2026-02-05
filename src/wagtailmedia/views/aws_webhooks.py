@@ -134,7 +134,7 @@ class AWSTranscodingWebhookView(View):
                 job_id=job_detail.job_id,
                 aws_status=job_detail.status,
                 detail=job_detail.raw_detail,
-                output_detail=job_detail.get_output_detail(),
+                output_detail=job_detail.output_detail,
             )
         except TranscodingJobNotFound as err:
             logger.warning("Webhook for unknown job: %s", job_detail.job_id)
