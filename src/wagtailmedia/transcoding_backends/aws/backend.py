@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import boto3
 import botocore.exceptions as botocore_exceptions
 
+from django.core.files import File
 from django_tasks import task
 
 from wagtailmedia.models import (
@@ -160,9 +161,13 @@ class OutputDetail:
             raise DataValidationError(f"Invalid COMPLETE webhook structure: {e}") from e
 
 
-def map_aws_status_to_internal(status):
+def map_aws_status_to_internal(status: str) -> TranscodingJobStatus:
     """
-    Map external service status to internal TranscodingJobStatus.
+    Map AWS MediaConvert status to internal TranscodingJobStatus.
+
+    When MediaConvert reports COMPLETE, transcoding is done but we still need to
+    finalize the job (download file if needed, create rendition record), so we
+    map to FINALIZING. The background task will update to COMPLETE when finished.
     """
     status_map = {
         "COMPLETE": TranscodingJobStatus.COMPLETE,
@@ -173,7 +178,7 @@ def map_aws_status_to_internal(status):
     return status_map[status.upper()]
 
 
-def get_boto3_session():
+def get_boto3_session() -> boto3.Session:
     """
     Get boto3 session for transcoding operations.
 
@@ -192,9 +197,7 @@ def get_boto3_session():
 
 
 def get_s3_client():
-    """
-    Get S3 client with appropriate credentials.
-    """
+    """Get S3 client with appropriate credentials."""
     session = get_boto3_session()
     return session.client("s3")
 
@@ -277,7 +280,7 @@ def process_aws_job_status_update(
     return job
 
 
-def get_transcoding_job(job_id):
+def get_transcoding_job(job_id: str) -> MediaTranscodingJob:
     try:
         media_transcoding_job = MediaTranscodingJob.objects.get(job_id=job_id)
     except MediaTranscodingJob.DoesNotExist as err:
@@ -344,7 +347,7 @@ class S3Service:
     local files.
     """
 
-    def upload_file(self, file, bucket_name: str, object_name: str):
+    def upload_file(self, file: File, bucket_name: str, object_name: str) -> dict:
         """
         Upload a file to S3.
 
@@ -364,7 +367,7 @@ class S3Service:
         except botocore_exceptions.ClientError as err:
             raise S3UploadError(f"Failed to upload file to S3: {err}") from err
 
-    def ensure_file_is_available(self, source_file, bucket_name: str) -> str:
+    def ensure_file_is_available(self, source_file: File, bucket_name: str) -> str:
         """
         Ensure file is accessible for transcoding, uploading to S3 if needed.
 
