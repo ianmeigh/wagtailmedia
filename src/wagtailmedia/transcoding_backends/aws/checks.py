@@ -56,23 +56,24 @@ def check_aws_transcoding_backend_configuration(app_configs, **kwargs):
         )
 
     # Check required settings for AWS transcoding
-    required_settings = {
-        "AWS_MEDIACONVERT_DESTINATION_BUCKET": (
-            "Destination S3 bucket for transcoded media files. "
-            "This bucket will store the output of MediaConvert jobs."
-        ),
-    }
+    mediaconvert_bucket = getattr(
+        settings, "AWS_MEDIACONVERT_STORAGE_BUCKET_NAME", None
+    )
+    storage_bucket = getattr(settings, "AWS_STORAGE_BUCKET_NAME", None)
 
-    for setting_name, description in required_settings.items():
-        value = getattr(settings, setting_name, None)
-        if not value:
-            errors.append(
-                Error(
-                    f"{setting_name} is required for AWS transcoding backend",
-                    hint=f"{description} Add it to your Django settings.",
-                    id="wagtailmedia.E201",
-                )
+    # Check if we have a bucket (either explicit MediaConvert or fallback to storage)
+    if not mediaconvert_bucket and not storage_bucket:
+        errors.append(
+            Error(
+                "S3 bucket configuration required for AWS transcoding backend",
+                hint=(
+                    "Set AWS_STORAGE_BUCKET_NAME (if using S3 storage) or "
+                    "AWS_MEDIACONVERT_STORAGE_BUCKET_NAME (for a dedicated transcoding workspace). "
+                    "AWS_MEDIACONVERT_STORAGE_BUCKET_NAME will default to AWS_STORAGE_BUCKET_NAME if not specified."
+                ),
+                id="wagtailmedia.E201",
             )
+        )
 
     # Check optional settings and provide warnings for defaults
     optional_settings = {

@@ -1,10 +1,10 @@
 from django.conf import settings
 
 
-AWS_MEDIACONVERT_DESTINATION_BUCKET = getattr(
+AWS_MEDIACONVERT_STORAGE_BUCKET_NAME = getattr(
     settings,
-    "AWS_MEDIACONVERT_DESTINATION_BUCKET",
-    "",
+    "AWS_MEDIACONVERT_STORAGE_BUCKET_NAME",
+    getattr(settings, "AWS_STORAGE_BUCKET_NAME", None),
 )
 AWS_MEDIACONVERT_ROLE_NAME = getattr(
     settings, "AWS_MEDIACONVERT_ROLE_NAME", "MediaConvert_Default_Role"

@@ -18,11 +18,11 @@ from wagtailmedia.models import (
 )
 from wagtailmedia.transcoding_backends.aws.settings import (
     AWS_MEDIACONVERT_ACCESS_KEY_ID,
-    AWS_MEDIACONVERT_DESTINATION_BUCKET,
     AWS_MEDIACONVERT_QUEUE_NAME,
     AWS_MEDIACONVERT_REGION_NAME,
     AWS_MEDIACONVERT_ROLE_NAME,
     AWS_MEDIACONVERT_SECRET_ACCESS_KEY,
+    AWS_MEDIACONVERT_STORAGE_BUCKET_NAME,
 )
 from wagtailmedia.transcoding_backends.base import (
     AbstractTranscodingBackend,
@@ -315,11 +315,11 @@ class EMCTranscodingBackend(AbstractTranscodingBackend):
 
         # Ensure file is publicly accessible
         source_url = self.s3_service.ensure_file_is_available(
-            source_file, AWS_MEDIACONVERT_DESTINATION_BUCKET
+            source_file, AWS_MEDIACONVERT_STORAGE_BUCKET_NAME
         )
 
         # Build job settings
-        destination_url = f"s3://{AWS_MEDIACONVERT_DESTINATION_BUCKET}/"
+        destination_url = f"s3://{AWS_MEDIACONVERT_STORAGE_BUCKET_NAME}/"
         job_settings = self.job_settings.webm_vp8_settings(source_url, destination_url)
 
         # Create transcode job

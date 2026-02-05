@@ -45,7 +45,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
         WAGTAILMEDIA={
             "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
         },
-        AWS_STORAGE_BUCKET_NAME="test-bucket",
+        AWS_MEDIACONVERT_STORAGE_BUCKET_NAME="test-bucket",
         AWS_MEDIACONVERT_ROLE_NAME="TestRole",
         AWS_MEDIACONVERT_QUEUE_NAME="TestQueue",
     )
@@ -60,7 +60,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
         WAGTAILMEDIA={
             "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
         },
-        AWS_STORAGE_BUCKET_NAME="test-bucket",
+        AWS_MEDIACONVERT_STORAGE_BUCKET_NAME="test-bucket",
     )
     def test_boto3_not_installed(self):
         """Test that missing boto3 raises an error."""
@@ -77,45 +77,56 @@ class TestAWSTranscodingBackendChecks(TestCase):
         WAGTAILMEDIA={
             "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
         },
+        AWS_MEDIACONVERT_STORAGE_BUCKET_NAME=None,
         AWS_STORAGE_BUCKET_NAME=None,
     )
     @patch.dict(sys.modules, {"boto3": Mock()})
     def test_missing_required_bucket_setting(self):
-        """Test that missing AWS_STORAGE_BUCKET_NAME raises an error."""
+        """Test that missing both bucket settings raises an error."""
         issues = check_aws_transcoding_backend_configuration(app_configs=None)
         errors = [e for e in issues if isinstance(e, Error)]
 
         self.assertEqual(len(errors), 1)
-        self.assertEqual(
-            errors[0].msg,
-            "AWS_STORAGE_BUCKET_NAME is required for AWS transcoding backend",
-        )
+        self.assertIn(errors[0].msg, "S3 bucket configuration required")
         self.assertEqual(errors[0].id, "wagtailmedia.E201")
 
     @override_settings(
         WAGTAILMEDIA={
             "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
-        }
+        },
+        AWS_STORAGE_BUCKET_NAME="",
     )
     @patch.dict(sys.modules, {"boto3": Mock()})
     def test_empty_bucket_name_treated_as_missing(self):
-        """Test that empty string for bucket name is treated as missing."""
-        with self.settings(AWS_STORAGE_BUCKET_NAME=""):
+        """Test that empty string for both bucket names is treated as missing."""
+        with self.settings(AWS_MEDIACONVERT_STORAGE_BUCKET_NAME=""):
             issues = check_aws_transcoding_backend_configuration(app_configs=None)
             errors = [e for e in issues if isinstance(e, Error)]
 
             self.assertEqual(len(errors), 1)
-            self.assertEqual(
-                errors[0].msg,
-                "AWS_STORAGE_BUCKET_NAME is required for AWS transcoding backend",
-            )
+            self.assertIn(errors[0].msg, "S3 bucket configuration required")
             self.assertEqual(errors[0].id, "wagtailmedia.E201")
 
     @override_settings(
         WAGTAILMEDIA={
             "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
         },
-        AWS_STORAGE_BUCKET_NAME="test-bucket",
+        AWS_STORAGE_BUCKET_NAME="storage-bucket",
+        AWS_MEDIACONVERT_ROLE_NAME="TestRole",
+        AWS_MEDIACONVERT_QUEUE_NAME="TestQueue",
+    )
+    @patch.dict(sys.modules, {"boto3": Mock()})
+    def test_defaults_to_storage_bucket_when_mediaconvert_bucket_not_set(self):
+        """Test that AWS_STORAGE_BUCKET_NAME is used when AWS_MEDIACONVERT_STORAGE_BUCKET_NAME is not set."""
+        issues = check_aws_transcoding_backend_configuration(app_configs=None)
+
+        self.assertEqual(issues, [])
+
+    @override_settings(
+        WAGTAILMEDIA={
+            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
+        },
+        AWS_MEDIACONVERT_STORAGE_BUCKET_NAME="test-bucket",
     )
     @patch.dict(sys.modules, {"boto3": Mock()})
     def test_missing_optional_settings_generates_warnings(self):
