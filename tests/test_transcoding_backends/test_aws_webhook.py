@@ -29,7 +29,7 @@ class AWSTranscodingWebhookAuthenticationTests(TestCase):
             media=media,
             job_id="test-job",
             status=TranscodingJobStatus.PENDING,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+            backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
         )
 
         self.webhook_url = "/aws-transcoding-test/"
@@ -114,7 +114,7 @@ class AWSTranscodingWebhookRequestParsingTests(TestCase):
             media=media,
             job_id="test-job",
             status=TranscodingJobStatus.PENDING,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+            backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
         )
 
         self.webhook_url = "/aws-transcoding-test/"
@@ -225,7 +225,7 @@ class AWSTranscodingWebhookStatusMappingTests(TestCase):
             media=self.media,
             job_id="test-job",
             status=TranscodingJobStatus.PENDING,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+            backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
         )
 
         self.webhook_url = "/aws-transcoding-test/"
@@ -245,7 +245,7 @@ class AWSTranscodingWebhookStatusMappingTests(TestCase):
                     media=self.media,
                     job_id=f"test-job-{aws_status.lower()}",
                     status=TranscodingJobStatus.PENDING,
-                    backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+                    backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
                 )
 
                 payload = {
@@ -394,7 +394,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
                     media=self.media,
                     job_id=f"test-job-transition-{idx}",
                     status=initial_status,
-                    backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+                    backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
                 )
 
                 payload = {
@@ -427,7 +427,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
             media=self.media,
             job_id="test-job-complete",
             status=TranscodingJobStatus.COMPLETE,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+            backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
         )
 
         original_updated_at = job.updated_at
@@ -463,7 +463,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
             media=self.media,
             job_id="test-job-metadata",
             status=TranscodingJobStatus.PENDING,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+            backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
         )
 
         metadata = {
@@ -529,7 +529,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
             media=self.media,
             job_id="test-job-rendition-fields",
             status=TranscodingJobStatus.PROGRESSING,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+            backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
         )
 
         payload = {
@@ -590,7 +590,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
             media=self.media,
             job_id="test-job-progressing-no-rendition",
             status=TranscodingJobStatus.PENDING,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+            backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
         )
 
         payload = {
@@ -626,7 +626,7 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
             media=self.media,
             job_id="test-job-error-no-rendition",
             status=TranscodingJobStatus.PROGRESSING,
-            backend="wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+            backend="wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
         )
 
         payload = {

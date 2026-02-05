@@ -6,7 +6,7 @@ from django.core.checks import Error, Warning
 from django.test import TestCase, override_settings
 
 from wagtailmedia.transcoding_backends.aws.backend import (
-    EMCTranscodingBackend,  # noqa: F401
+    AWSMediaConvertBackend,  # noqa: F401
 )
 from wagtailmedia.transcoding_backends.aws.checks import (
     check_aws_transcoding_backend_configuration,
@@ -43,7 +43,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
 
     @override_settings(
         WAGTAILMEDIA={
-            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
+            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.AWSMediaConvertBackend"
         },
         AWS_MEDIACONVERT_STORAGE_BUCKET_NAME="test-bucket",
         AWS_MEDIACONVERT_ROLE_NAME="TestRole",
@@ -58,7 +58,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
 
     @override_settings(
         WAGTAILMEDIA={
-            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
+            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.AWSMediaConvertBackend"
         },
         AWS_MEDIACONVERT_STORAGE_BUCKET_NAME="test-bucket",
     )
@@ -75,7 +75,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
 
     @override_settings(
         WAGTAILMEDIA={
-            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
+            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.AWSMediaConvertBackend"
         },
         AWS_MEDIACONVERT_STORAGE_BUCKET_NAME=None,
         AWS_STORAGE_BUCKET_NAME=None,
@@ -92,7 +92,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
 
     @override_settings(
         WAGTAILMEDIA={
-            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
+            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.AWSMediaConvertBackend"
         },
         AWS_STORAGE_BUCKET_NAME="",
     )
@@ -109,7 +109,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
 
     @override_settings(
         WAGTAILMEDIA={
-            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
+            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.AWSMediaConvertBackend"
         },
         AWS_STORAGE_BUCKET_NAME="storage-bucket",
         AWS_MEDIACONVERT_ROLE_NAME="TestRole",
@@ -124,7 +124,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
 
     @override_settings(
         WAGTAILMEDIA={
-            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.EMCTranscodingBackend"
+            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.AWSMediaConvertBackend"
         },
         AWS_MEDIACONVERT_STORAGE_BUCKET_NAME="test-bucket",
     )

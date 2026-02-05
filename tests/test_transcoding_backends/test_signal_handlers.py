@@ -30,7 +30,7 @@ class TranscodeVideoTests(TestCase):
         self.mock_backend = Mock()
         self.mock_backend_cls.return_value = self.mock_backend
         self.mock_backend_cls.__module__ = "wagtailmedia.transcoding_backends.aws"
-        self.mock_backend_cls.__name__ = "EMCTranscodingBackend"
+        self.mock_backend_cls.__name__ = "AWSMediaConvertBackend"
 
         # Set default return value for start_transcode
         self.mock_backend.start_transcode.return_value = {
@@ -105,7 +105,7 @@ class TranscodeVideoTests(TestCase):
             self.assertEqual(job.status, TranscodingJobStatus.PENDING)
             self.assertEqual(
                 job.backend,
-                "wagtailmedia.transcoding_backends.aws.EMCTranscodingBackend",
+                "wagtailmedia.transcoding_backends.aws.AWSMediaConvertBackend",
             )
 
     def test_marks_job_failed_on_transcoding_error(self):

@@ -287,7 +287,7 @@ def get_transcoding_job(job_id):
     return media_transcoding_job
 
 
-class EMCTranscodingBackend(AbstractTranscodingBackend):
+class AWSMediaConvertBackend(AbstractTranscodingBackend):
     """
     AWS MediaConvert transcoding backend orchestrator.
     """

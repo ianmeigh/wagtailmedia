@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.checks import Error, Tags, Warning, register
 
 from wagtailmedia.settings import wagtailmedia_settings
-from wagtailmedia.transcoding_backends.aws.backend import EMCTranscodingBackend
+from wagtailmedia.transcoding_backends.aws.backend import AWSMediaConvertBackend
 from wagtailmedia.utils import get_media_transcoding_backend
 
 
@@ -37,7 +37,7 @@ def check_aws_transcoding_backend_configuration(app_configs, **kwargs):
 
     # Only run checks if AWS backend is configured
     backend = get_media_transcoding_backend()
-    if backend and not issubclass(backend, EMCTranscodingBackend):
+    if backend and not issubclass(backend, AWSMediaConvertBackend):
         return errors
 
     # Check boto3 package available in environment
