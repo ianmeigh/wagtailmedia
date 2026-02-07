@@ -236,7 +236,8 @@ class AWSTranscodingWebhookStatusMappingTests(TestCase):
         valid_statuses = [
             ("PROGRESSING", TranscodingJobStatus.PROGRESSING),
             ("ERROR", TranscodingJobStatus.FAILED),
-            ("COMPLETE", TranscodingJobStatus.COMPLETE),
+            # COMPLETE maps to FINALISING - task will update to COMPLETE when done
+            ("COMPLETE", TranscodingJobStatus.FINALISING),
         ]
 
         for aws_status, expected_internal_status in valid_statuses:
@@ -365,14 +366,14 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
             (
                 TranscodingJobStatus.PENDING,
                 "COMPLETE",
-                TranscodingJobStatus.COMPLETE,
+                TranscodingJobStatus.FINALISING,
                 complete_payload,
             ),
             (TranscodingJobStatus.PENDING, "ERROR", TranscodingJobStatus.FAILED, None),
             (
                 TranscodingJobStatus.PROGRESSING,
                 "COMPLETE",
-                TranscodingJobStatus.COMPLETE,
+                TranscodingJobStatus.FINALISING,
                 complete_payload,
             ),
             (
@@ -570,18 +571,15 @@ class AWSTranscodingWebhookJobUpdateTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
         job.refresh_from_db()
-        self.assertEqual(job.status, TranscodingJobStatus.COMPLETE)
+        self.assertEqual(job.status, TranscodingJobStatus.FINALISING)
 
-        # Verify rendition was created and linked
-        self.assertIsNotNone(job.renditions.all())
+        # Webhook sets status to FINALISING and stores metadata
+        # Rendition creation happens in background task (not tested here)
+        # TODO: Add test for background finalisation task that creates rendition
+        self.assertEqual(job.renditions.count(), 0)
 
-        # Verify rendition fields are populated correctly
-        rendition = job.renditions.first()
-        self.assertEqual(rendition.width, 1280)
-        self.assertEqual(rendition.height, 720)
-        self.assertEqual(rendition.duration, 10.5)  # Converted from ms to seconds
-        self.assertEqual(rendition.bitrate, 2500000)
-        self.assertEqual(rendition.file.name, "media/transcoded/test-video.mp4")
+        # Verify output details were saved to metadata
+        self.assertIn("outputGroupDetails", job.metadata)
 
     @override_settings(AWS_WEBHOOK_API_KEY="valid-api-key")
     def test_progressing_status_does_not_create_rendition(self):

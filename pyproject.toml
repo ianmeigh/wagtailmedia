@@ -35,11 +35,13 @@ dependencies = [
 testing = [
     "coverage>=7.10.0",
     "tox>=4.28.4",
+    "django-tasks>=0.7.0",
+    "boto3>=1.40.43",
 ]
 linting = [
     "pre-commit>=4.3.0",
 ]
-boto3 = [
+aws = [
     "boto3>=1.40.43",
 ]
 

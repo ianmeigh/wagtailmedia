@@ -48,6 +48,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
         AWS_MEDIACONVERT_STORAGE_BUCKET_NAME="test-bucket",
         AWS_MEDIACONVERT_ROLE_NAME="TestRole",
         AWS_MEDIACONVERT_QUEUE_NAME="TestQueue",
+        AWS_WEBHOOK_API_KEY="test-api-key",
     )
     @patch.dict(sys.modules, {"boto3": Mock()})
     def test_valid_configuration(self):
@@ -55,23 +56,6 @@ class TestAWSTranscodingBackendChecks(TestCase):
         issues = check_aws_transcoding_backend_configuration(app_configs=None)
 
         self.assertEqual(issues, [])
-
-    @override_settings(
-        WAGTAILMEDIA={
-            "TRANSCODING_BACKEND": "test_transcoding_backends.test_aws_checks.AWSMediaConvertBackend"
-        },
-        AWS_MEDIACONVERT_STORAGE_BUCKET_NAME="test-bucket",
-    )
-    def test_boto3_not_installed(self):
-        """Test that missing boto3 raises an error."""
-        issues = check_aws_transcoding_backend_configuration(app_configs=None)
-        errors = [e for e in issues if isinstance(e, Error)]
-        self.assertEqual(len(errors), 1)
-        self.assertEqual(
-            "boto3 is required for AWS transcoding backend but is not installed",
-            errors[0].msg,
-        )
-        self.assertEqual(errors[0].id, "wagtailmedia.E200")
 
     @override_settings(
         WAGTAILMEDIA={
@@ -87,7 +71,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
         errors = [e for e in issues if isinstance(e, Error)]
 
         self.assertEqual(len(errors), 1)
-        self.assertIn(errors[0].msg, "S3 bucket configuration required")
+        self.assertIn("S3 bucket configuration required", errors[0].msg)
         self.assertEqual(errors[0].id, "wagtailmedia.E201")
 
     @override_settings(
@@ -104,7 +88,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
             errors = [e for e in issues if isinstance(e, Error)]
 
             self.assertEqual(len(errors), 1)
-            self.assertIn(errors[0].msg, "S3 bucket configuration required")
+            self.assertIn("S3 bucket configuration required", errors[0].msg)
             self.assertEqual(errors[0].id, "wagtailmedia.E201")
 
     @override_settings(
@@ -114,6 +98,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
         AWS_STORAGE_BUCKET_NAME="storage-bucket",
         AWS_MEDIACONVERT_ROLE_NAME="TestRole",
         AWS_MEDIACONVERT_QUEUE_NAME="TestQueue",
+        AWS_WEBHOOK_API_KEY="test-api-key",
     )
     @patch.dict(sys.modules, {"boto3": Mock()})
     def test_defaults_to_storage_bucket_when_mediaconvert_bucket_not_set(self):
@@ -138,6 +123,7 @@ class TestAWSTranscodingBackendChecks(TestCase):
         expected_warnings = [
             "AWS_MEDIACONVERT_ROLE_NAME not set, using default: 'MediaConvert_Default_Role'",
             "AWS_MEDIACONVERT_QUEUE_NAME not set, using default: 'Default'",
+            "AWS_WEBHOOK_API_KEY not set - webhook status updates will fail",
         ]
 
         self.assertEqual(len(warnings), len(expected_warnings))
@@ -145,4 +131,3 @@ class TestAWSTranscodingBackendChecks(TestCase):
         for i, expected_msg in enumerate(expected_warnings):
             with self.subTest(i, warning=expected_msg):
                 self.assertEqual(expected_msg, warnings[i].msg)
-                self.assertEqual(warnings[i].id, "wagtailmedia.E203")

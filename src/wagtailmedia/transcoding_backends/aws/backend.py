@@ -7,10 +7,12 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
-import boto3
-import botocore.exceptions as botocore_exceptions
+
+if TYPE_CHECKING:
+    import boto3
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -198,6 +200,7 @@ def get_boto3_session() -> boto3.Session:
     Uses MediaConvert-specific credentials if configured, otherwise falls back to
     default boto3 credential chain.
     """
+    import boto3
 
     if AWS_MEDIACONVERT_ACCESS_KEY_ID and AWS_MEDIACONVERT_SECRET_ACCESS_KEY:
         return boto3.Session(
@@ -416,6 +419,7 @@ class S3Service:
         Returns:
             dict: S3 put_object response
         """
+        import botocore.exceptions as botocore_exceptions
 
         s3_client = get_s3_client()
 
@@ -731,6 +735,7 @@ class MediaConvertService:
         Raises:
             IAMGetRoleError: If role cannot be found or IAM access is denied
         """
+        import botocore.exceptions as botocore_exceptions
 
         iam_client = get_iam_client()
 
@@ -762,6 +767,7 @@ class MediaConvertService:
         Raises:
             MediaConvertJobError: If job creation fails (invalid settings, permissions, etc.)
         """
+        import botocore.exceptions as botocore_exceptions
 
         mediaconvert = get_mediaconvert_client()
 
