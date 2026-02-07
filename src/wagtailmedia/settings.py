@@ -33,6 +33,7 @@ DEFAULTS = {
         "webm",
     ],
     "TRANSCODING_BACKEND": "",
+    "TRANSCODING_PROFILE": "",
 }
 
 # List of settings that have been deprecated

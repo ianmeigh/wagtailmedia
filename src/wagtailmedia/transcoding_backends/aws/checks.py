@@ -1,4 +1,7 @@
+import json
 import logging
+
+from pathlib import Path
 
 from django.conf import settings
 from django.core.checks import Error, Tags, Warning, register
@@ -100,5 +103,188 @@ def check_aws_transcoding_backend_configuration(app_configs, **kwargs):
 
     if not errors:
         logger.debug(f"Using transcoding backend: {backend_path.split('.')[-1]}")
+
+    return errors
+
+
+@register(Tags.compatibility)
+def check_transcoding_profile_configuration(app_configs, **kwargs):
+    """
+    Check transcoding profile configuration at startup.
+
+    Validates that TRANSCODING_PROFILE is set, file exists, JSON is valid, and has
+    required structure for input and output key value pairs to be added.
+
+    Returns:
+        List of any configuration issues
+    """
+    errors = []
+
+    backend_path = getattr(wagtailmedia_settings, "TRANSCODING_BACKEND", "")
+    if not backend_path:
+        return errors
+
+    backend = get_media_transcoding_backend()
+    if backend and not issubclass(backend, AWSMediaConvertBackend):
+        return errors
+
+    profile_path = getattr(wagtailmedia_settings, "TRANSCODING_PROFILE", "")
+    if not profile_path:
+        errors.append(
+            Error(
+                "TRANSCODING_PROFILE not configured",
+                hint=(
+                    "Set WAGTAILMEDIA['TRANSCODING_PROFILE'] to path of profile JSON file. "
+                    "Export job template from AWS MediaConvert Console and save as JSON file."
+                ),
+                id="wagtailmedia.E210",
+            )
+        )
+        return errors
+
+    # Resolve path relative to BASE_DIR
+    path_obj = Path(profile_path)
+    if not path_obj.is_absolute():
+        path_obj = Path(settings.BASE_DIR) / profile_path
+
+    if not path_obj.exists():
+        errors.append(
+            Error(
+                f"Transcoding profile file not found: {path_obj}",
+                hint="Create the file or update WAGTAILMEDIA['TRANSCODING_PROFILE']",
+                id="wagtailmedia.E211",
+            )
+        )
+        return errors
+
+    if not path_obj.is_file():
+        errors.append(
+            Error(
+                f"Transcoding profile path is not a file: {path_obj}",
+                id="wagtailmedia.E212",
+            )
+        )
+        return errors
+
+    # Check JSON is valid
+    try:
+        with open(path_obj, encoding="utf-8") as f:
+            profile_data = json.load(f)
+    except json.JSONDecodeError as e:
+        errors.append(
+            Error(
+                f"Transcoding profile has invalid JSON: {e}",
+                hint="Validate JSON syntax using a JSON validator",
+                id="wagtailmedia.E213",
+            )
+        )
+        return errors
+    except Exception as e:
+        errors.append(
+            Error(
+                f"Failed to read transcoding profile: {e}",
+                id="wagtailmedia.E214",
+            )
+        )
+        return errors
+
+    # Validate dict structure
+    if not isinstance(profile_data, dict):
+        errors.append(
+            Error(
+                "Transcoding profile must be a JSON object",
+                id="wagtailmedia.E215",
+            )
+        )
+        return errors
+
+    # Check that Settings key exists and is a valid object
+    settings_dict = profile_data.get("Settings")
+    if not isinstance(settings_dict, dict):
+        errors.append(
+            Error(
+                "Transcoding profile missing or invalid 'Settings' object",
+                hint="Profile must be exported from AWS MediaConvert Job Template",
+                id="wagtailmedia.E215a",
+            )
+        )
+        return errors
+
+    # Check Inputs list exists and is a valid
+    if "Inputs" not in settings_dict:
+        errors.append(
+            Error(
+                "Transcoding profile missing 'Inputs' array",
+                hint="Profile must have Inputs array. Export from AWS MediaConvert Job Template.",
+                id="wagtailmedia.E216",
+            )
+        )
+    elif (
+        not isinstance(settings_dict["Inputs"], list)
+        or len(settings_dict["Inputs"]) == 0
+    ):
+        errors.append(
+            Error(
+                "Transcoding profile Inputs must be a non-empty array",
+                id="wagtailmedia.E217",
+            )
+        )
+    elif len(settings_dict["Inputs"]) > 1:
+        errors.append(
+            Error(
+                "Transcoding profile has multiple inputs - only first will be used",
+                hint="For single file transcoding, use one input only",
+                id="wagtailmedia.W218",
+            )
+        )
+
+    # Check OutputGroups list exists and is valid
+    if "OutputGroups" not in settings_dict:
+        errors.append(
+            Error(
+                "Transcoding profile missing 'OutputGroups' array",
+                hint="Profile must have OutputGroups array. Export from AWS MediaConvert Job Template.",
+                id="wagtailmedia.E219",
+            )
+        )
+    elif (
+        not isinstance(settings_dict["OutputGroups"], list)
+        or len(settings_dict["OutputGroups"]) == 0
+    ):
+        errors.append(
+            Error(
+                "Transcoding profile OutputGroups must be a non-empty array",
+                id="wagtailmedia.E220",
+            )
+        )
+    elif len(settings_dict["OutputGroups"]) > 1:
+        errors.append(
+            Error(
+                "Transcoding profile has multiple output groups - only first will be used, but AWS will charge for all",
+                hint="Remove extra output groups to avoid unnecessary transcoding costs. Keep only one output group.",
+                id="wagtailmedia.E221",
+            )
+        )
+    else:
+        # Check first output group has valid structure
+        output_group = settings_dict["OutputGroups"][0]
+        if "Outputs" in output_group and len(output_group["Outputs"]) > 1:
+            errors.append(
+                Error(
+                    "Transcoding profile has multiple outputs in first output group - only first will be used",
+                    hint="For single rendition, use one output only. Multiple renditions will be supported in future.",
+                    id="wagtailmedia.W222",
+                )
+            )
+
+        # Check OutputGroupSettings exists so the destination can be added
+        if "OutputGroupSettings" not in output_group:
+            errors.append(
+                Error(
+                    "Transcoding profile first output group missing OutputGroupSettings",
+                    hint="May not be able to inject destination path",
+                    id="wagtailmedia.W223",
+                )
+            )
 
     return errors

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 
 from dataclasses import dataclass
@@ -10,6 +11,8 @@ from urllib.parse import urlparse
 import boto3
 import botocore.exceptions as botocore_exceptions
 
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.core.files import File
 from django_tasks import task
 
@@ -18,6 +21,7 @@ from wagtailmedia.models import (
     MediaTranscodingJob,
     TranscodingJobStatus,
 )
+from wagtailmedia.settings import wagtailmedia_settings
 from wagtailmedia.transcoding_backends.aws.settings import (
     AWS_MEDIACONVERT_ACCESS_KEY_ID,
     AWS_MEDIACONVERT_QUEUE_NAME,
@@ -328,6 +332,8 @@ class AWSMediaConvertBackend(AbstractTranscodingBackend):
         """
         Start transcoding a media file using AWS MediaConvert.
 
+        Uses the transcoding profile configured in WAGTAILMEDIA['TRANSCODING_PROFILE'].
+
         Args:
             source_file: Django file object to transcode (must have 'name' attribute
                         and optionally 'url' for web-accessible files)
@@ -341,9 +347,9 @@ class AWSMediaConvertBackend(AbstractTranscodingBackend):
             source_file, AWS_MEDIACONVERT_STORAGE_BUCKET_NAME
         )
 
-        # Build job settings
+        # Build job settings from configured profile
         destination_url = f"s3://{AWS_MEDIACONVERT_STORAGE_BUCKET_NAME}/"
-        job_settings = self.job_settings.webm_vp8_settings(source_url, destination_url)
+        job_settings = self.job_settings.get_settings(source_url, destination_url)
 
         # Create transcode job
         response = self.mediaconvert_service.create_transcode_job(
@@ -430,69 +436,71 @@ class MediaConvertJobSettings:
     """
 
     @staticmethod
-    def webm_vp8_settings(source_url: str, destination_bucket: str) -> dict:
+    def get_settings(source_url: str, destination_bucket: str) -> dict:
         """
-        Build a standard WEBM/VP8/OPUS transcode job configuration.
+        Get job settings for transcoding.
 
-        Creates a MediaConvert job that transcodes video to WEBM container
-        with VP8 video codec (2.5 Mbps VBR, 24fps) and OPUS audio codec.
+        Loads profile JSON from configured file path, injects source file
+        and destination paths, and returns complete job settings.
 
         Args:
-            source_url: S3 URL of source file (s3://bucket/key format)
-            destination_bucket: S3 URL of destination directory (s3://bucket/prefix/)
+            source_url: S3 URL of source file (s3://bucket/file)
+            destination_bucket: S3 URL of destination directory (s3://bucket/dir/)
 
         Returns:
             dict: Complete MediaConvert job settings dictionary
-        """
 
-        return {
-            "TimecodeConfig": {"Source": "EMBEDDED"},
-            "FollowSource": 1,
-            "Inputs": [
-                {
-                    "AudioSelectors": {
-                        "Audio Selector 1": {"DefaultSelection": "DEFAULT"}
-                    },
-                    "TimecodeSource": "EMBEDDED",
-                    "FileInput": source_url,
-                }
-            ],
-            "OutputGroups": [
-                {
-                    "Name": "File Group",
-                    "Outputs": [
-                        {
-                            "ContainerSettings": {"Container": "WEBM"},
-                            "VideoDescription": {
-                                "CodecSettings": {
-                                    "Codec": "VP8",
-                                    "Vp8Settings": {
-                                        "RateControlMode": "VBR",
-                                        "Bitrate": 2500000,
-                                        "FramerateControl": "SPECIFIED",
-                                        "FramerateNumerator": 24,
-                                        "FramerateDenominator": 1,
-                                    },
-                                }
-                            },
-                            "AudioDescriptions": [
-                                {
-                                    "AudioSourceName": "Audio Selector 1",
-                                    "CodecSettings": {
-                                        "Codec": "OPUS",
-                                        "OpusSettings": {},
-                                    },
-                                }
-                            ],
-                        }
-                    ],
-                    "OutputGroupSettings": {
-                        "Type": "FILE_GROUP_SETTINGS",
-                        "FileGroupSettings": {"Destination": destination_bucket},
-                    },
-                }
-            ],
-        }
+        Raises:
+            ImproperlyConfigured: If TRANSCODING_PROFILE is not configured
+            FileNotFoundError: If JSON file doesn't exist
+            json.JSONDecodeError: If JSON is invalid
+        """
+        # Get profile file path from settings
+        profile_path = wagtailmedia_settings.TRANSCODING_PROFILE
+        if not profile_path:
+            raise ImproperlyConfigured(
+                "TRANSCODING_PROFILE not configured. "
+                "Set WAGTAILMEDIA['TRANSCODING_PROFILE'] to path of profile JSON file."
+            )
+
+        if not Path(profile_path).is_absolute():
+            profile_path = Path(settings.BASE_DIR) / profile_path
+
+        with open(profile_path, encoding="utf-8") as f:
+            profile_data = json.load(f)
+
+        settings_dict = profile_data["Settings"]
+
+        return MediaConvertJobSettings._set_source_and_destination(
+            settings_dict, source_url, destination_bucket
+        )
+
+    @staticmethod
+    def _set_source_and_destination(
+        settings_dict: dict, source_url: str, destination_bucket: str
+    ) -> dict:
+        """
+        add source file and destination paths into MediaConvert job settings.
+        # Inject source and destination into the loaded settings
+
+        Modifies the settings dict in-place to add FileInput and Destination values.
+        Assumes settings_dict has been validated by system checks.
+
+        Args:
+            settings_dict: MediaConvert job settings from JSON file
+            source_url: S3 URL of source file
+            destination_bucket: S3 URL of destination directory
+
+        Returns:
+            dict: Modified settings with injected values
+        """
+        settings_dict["Inputs"][0]["FileInput"] = source_url
+        output_group_settings = settings_dict["OutputGroups"][0]["OutputGroupSettings"]
+        output_group_settings.setdefault("FileGroupSettings", {})["Destination"] = (
+            destination_bucket
+        )
+
+        return settings_dict
 
 
 class MediaConvertService:
