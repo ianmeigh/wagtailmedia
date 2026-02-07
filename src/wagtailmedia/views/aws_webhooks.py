@@ -142,7 +142,7 @@ class AWSTranscodingWebhookView(View):
         except DataValidationError as err:
             logger.error("Invalid job data: %s", err)
             return JsonResponse({"error": str(err)}, status=400)
-        except KeyError as err:
+        except (KeyError, ValueError) as err:
             logger.error("Invalid status: %s", err)
             return JsonResponse({"error": str(err)}, status=400)
 
