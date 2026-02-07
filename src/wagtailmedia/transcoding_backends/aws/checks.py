@@ -101,6 +101,36 @@ def check_aws_transcoding_backend_configuration(app_configs, **kwargs):
                 )
             )
 
+    # Check webhook API key
+    webhook_api_key = getattr(settings, "AWS_WEBHOOK_API_KEY", None)
+    if not webhook_api_key:
+        errors.append(
+            Warning(
+                "AWS_WEBHOOK_API_KEY not set - webhook status updates will fail",
+                hint=(
+                    "Transcoding jobs will not receive status updates from AWS EventBridge. "
+                    "Set AWS_WEBHOOK_API_KEY to enable automatic job status updates via webhooks."
+                ),
+                id="wagtailmedia.W204",
+            )
+        )
+
+    # Check MediaConvert credentials are present
+    has_access_key = bool(getattr(settings, "AWS_MEDIACONVERT_ACCESS_KEY_ID", ""))
+    has_secret_key = bool(getattr(settings, "AWS_MEDIACONVERT_SECRET_ACCESS_KEY", ""))
+
+    if has_access_key != has_secret_key:
+        errors.append(
+            Error(
+                "AWS MediaConvert credentials partially configured",
+                hint=(
+                    "Both AWS_MEDIACONVERT_ACCESS_KEY_ID and AWS_MEDIACONVERT_SECRET_ACCESS_KEY "
+                    "must be set together, or neither (to use default boto3 credential chain)."
+                ),
+                id="wagtailmedia.E205",
+            )
+        )
+
     if not errors:
         logger.debug(f"Using transcoding backend: {backend_path.split('.')[-1]}")
 
