@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -172,15 +173,16 @@ def map_aws_status_to_internal(status: str) -> TranscodingJobStatus:
 
     When MediaConvert reports COMPLETE, transcoding is done but we still need to
     finalize the job (download file if needed, create rendition record), so we
-    map to FINALIZING. The background task will update to COMPLETE when finished.
+    map to FINALISING. The background task will update to COMPLETE when finished.
     """
     status_map = {
-        "COMPLETE": TranscodingJobStatus.COMPLETE,
-        "ERROR": TranscodingJobStatus.FAILED,
-        "PROGRESSING": TranscodingJobStatus.PROGRESSING,
+        AWSMediaConvertStatuses.PROGRESSING: TranscodingJobStatus.PROGRESSING,
+        AWSMediaConvertStatuses.COMPLETE: TranscodingJobStatus.FINALISING,
+        AWSMediaConvertStatuses.ERROR: TranscodingJobStatus.FAILED,
     }
 
-    return status_map[status.upper()]
+    aws_status = AWSMediaConvertStatuses(status.upper())
+    return status_map[aws_status]
 
 
 def get_boto3_session() -> boto3.Session:
@@ -293,6 +295,19 @@ def get_transcoding_job(job_id: str) -> MediaTranscodingJob:
         raise TranscodingJobNotFound from err
 
     return media_transcoding_job
+
+
+class AWSMediaConvertStatuses(str, Enum):
+    """
+    AWS MediaConvert job status values.
+
+    These map to AWS MediaConvert's job status values received from webhooks. AWS also
+    provides SUBMITTED and CANCELED statuses which are not currently mapped.
+    """
+
+    PROGRESSING = "PROGRESSING"
+    COMPLETE = "COMPLETE"
+    ERROR = "ERROR"
 
 
 class AWSMediaConvertBackend(AbstractTranscodingBackend):

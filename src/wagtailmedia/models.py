@@ -34,6 +34,7 @@ class TranscodingJobStatus(models.TextChoices):
     PENDING = "pending", _("Pending")
     SUBMITTED = "submitted", _("Submitted")
     PROGRESSING = "progressing", _("Progressing")
+    FINALISING = "finalising", _("Finalising")
     COMPLETE = "complete", _("Complete")
     CANCELED = "canceled", _("Canceled")
     ERROR = "error", _("Error")
