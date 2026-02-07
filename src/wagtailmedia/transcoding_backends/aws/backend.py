@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import tempfile
 
 from dataclasses import dataclass
 from enum import Enum
@@ -14,6 +15,7 @@ import botocore.exceptions as botocore_exceptions
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files import File
+from django.core.files.storage import Storage, default_storage
 from django_tasks import task
 
 from wagtailmedia.models import (
@@ -226,37 +228,64 @@ def get_iam_client():
 
 
 @task()
-def create_rendition(
+def download_and_create_rendition(
     transcoding_job_id: int,
-    output_file_path: str,
+    s3_output_url: str,
     duration_ms: int,
     width: int,
     height: int,
     bitrate: int,
 ):
-    # TODO: If storage backend not S3 (or same bucket) copy the file to the default storage backend
-    # 1. Get backend (from django.core.files.storage import default_storage)
-    # 2. Save file content to file like object
-    # 3. Create model instance with file like object
-    # 4. Remove from S3?
-    transcoding_job = MediaTranscodingJob.objects.get(pk=transcoding_job_id)
+    """
+    Finalise transcoding job: download file (if needed) and create rendition.
 
-    o = urlparse(output_file_path)
-    s3_key = o.path.lstrip("/")
-    duration = duration_ms / 1000
+    Args:
+        transcoding_job_id: MediaTranscodingJob primary key
+        s3_output_url: S3 URL of transcoded file (s3://bucket/path/file.webm)
+        duration_ms: Video duration in milliseconds
+        width: Video width in pixels
+        height: Video height in pixels
+        bitrate: Average bitrate
+    """
+    try:
+        transcoding_job = MediaTranscodingJob.objects.get(pk=transcoding_job_id)
 
-    # Create the MediaRendition linked to the media from the job
-    rendition = MediaRendition.objects.create(
-        media=transcoding_job.media,
-        transcoding_job=transcoding_job,
-        file=s3_key,
-        width=width,
-        height=height,
-        duration=duration,
-        bitrate=bitrate,
-    )
+        downloader = S3Downloader()
 
-    logger.info("Created rendition (%s) for %s", rendition, rendition.media)
+        # Download file from S3 if needed
+        if not downloader.should_skip_download():
+            logger.info("Downloading transcoded file from S3 to storage backend")
+            file_path = downloader.download_from_s3_to_storage(
+                s3_url=s3_output_url,
+                destination_name=Path(urlparse(s3_output_url).path).name,
+            )
+        else:
+            logger.info("File already in S3 storage backend, skipping download")
+            # Extract path from S3 URL (path without bucket)
+            o = urlparse(s3_output_url)
+            file_path = o.path.lstrip("/")
+
+        duration = duration_ms / 1000
+
+        rendition = MediaRendition.objects.create(
+            media=transcoding_job.media,
+            transcoding_job=transcoding_job,
+            file=file_path,
+            width=width,
+            height=height,
+            duration=duration,
+            bitrate=bitrate,
+        )
+
+        logger.info("Created rendition (%s) for %s", rendition, rendition.media)
+
+        # Mark job as complete
+        transcoding_job.update_status(TranscodingJobStatus.COMPLETE)
+    except Exception as e:
+        logger.exception(
+            "Failed to finalise transcoding job %s: %s", transcoding_job_id, e
+        )
+        raise
 
 
 def process_aws_job_status_update(
@@ -267,21 +296,23 @@ def process_aws_job_status_update(
     """
     job = get_transcoding_job(job_id)
 
-    # Skip if already complete
-    if job.status == TranscodingJobStatus.COMPLETE:
-        logger.debug("Job %s already complete, skipping update", job_id)
+    # Skip if already complete or finalising
+    if job.status in (TranscodingJobStatus.COMPLETE, TranscodingJobStatus.FINALISING):
+        logger.debug(
+            "Job %s already in terminal/finalising state (%s), skipping update",
+            job_id,
+            job.status,
+        )
         return job
 
     # Map and update status
     internal_status = map_aws_status_to_internal(aws_status)
     job.update_status(internal_status, detail)
 
-    # Create rendition if complete
-    if internal_status == TranscodingJobStatus.COMPLETE and output_detail:
-        # Enqueue as background task
-        create_rendition.enqueue(
-            job.pk,
-            output_file_path=output_detail.output_file_path,
+    if internal_status == TranscodingJobStatus.FINALISING and output_detail:
+        download_and_create_rendition.enqueue(
+            transcoding_job_id=job.pk,
+            s3_output_url=output_detail.output_file_path,
             duration_ms=output_detail.duration_ms,
             width=output_detail.width_px,
             height=output_detail.height_px,
@@ -425,6 +456,178 @@ class S3Service:
             raise ValueError(
                 f"source_file must be a Django file object with 'name' attribute: {err}"
             ) from err
+
+
+class S3Downloader:
+    """
+    Downloads transcoded files from S3 to the storage backend configured in Django
+    settings.
+
+    Skips download when storage backend uses the same S3 bucket.
+    """
+
+    def __init__(self):
+        self._download_progress = 0
+        self._download_total = 0
+        self._last_log_time = 0
+
+    def log_download_progress(self, num_bytes: int):
+        """
+        Progress callback for S3 downloads.
+
+        Logs progress (at most once per second).
+        """
+        import time
+
+        self._download_progress += num_bytes
+        current_time = time.time()
+
+        if current_time - self._last_log_time >= 1.0:
+            if self._download_total > 0:
+                percent = (self._download_progress / self._download_total) * 100
+                mb_progress = self._download_progress / (1024 * 1024)
+                mb_total = self._download_total / (1024 * 1024)
+                logger.info(
+                    f"Download progress: {percent:.1f}% ({mb_progress:.1f}MB / {mb_total:.1f}MB)"
+                )
+            else:
+                mb_progress = self._download_progress / (1024 * 1024)
+                logger.info(f"Download progress: {mb_progress:.1f}MB downloaded")
+
+            self._last_log_time = current_time
+
+    def download_from_s3_to_storage(
+        self,
+        s3_url: str,
+        destination_name: str,
+        storage_backend: Storage | None = None,
+    ) -> str:
+        """
+        Download file from S3 and save to the storage backend configured in Django
+        settings.
+
+        Uses temporary file and streaming to handle large files without loading entire
+        file into memory.
+
+        Args:
+            s3_url: S3 URL (s3://bucket/key format)
+            destination_name: Desired filename/path in storage
+            storage_backend: Storage backend to use (defaults to default_storage)
+
+        Returns:
+            str: Actual saved path in storage
+        """
+        storage = storage_backend or default_storage
+
+        # Parse S3 URL
+        parsed_url = urlparse(s3_url)
+        bucket = parsed_url.netloc
+        key = parsed_url.path.lstrip("/")
+
+        logger.info(f"Downloading {s3_url} to storage as {destination_name}")
+
+        s3_client = get_s3_client()
+
+        # Get file size for logging
+        try:
+            head_response = s3_client.head_object(Bucket=bucket, Key=key)
+            self._download_total = head_response["ContentLength"]
+            self._download_progress = 0
+            logger.info(f"File size: {self._download_total / (1024 * 1024):.1f}MB")
+        except Exception as e:
+            logger.warning(f"Could not get file size: {e}")
+            self._download_total = 0
+
+        # Use suffix to preserve extension
+        file_ext = Path(key).suffix
+
+        with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+
+            try:
+                # Download from S3 to temp file
+                logger.info(f"Downloading to temp file: {temp_file.name}")
+                s3_client.download_file(
+                    Bucket=bucket,
+                    Key=key,
+                    Filename=temp_file.name,
+                    Callback=self.log_download_progress,
+                )
+
+                temp_file.close()
+
+                # Get file size for logging
+                file_size = temp_path.stat().st_size
+                logger.info(f"Downloaded {file_size / 1024 / 1024:.2f} MB from S3")
+
+                # Open temp file and wrap in Django File
+                # This allows streaming without loading into memory
+                with open(temp_path, "rb") as f:
+                    django_file = File(f, name=Path(destination_name).name)
+
+                    # Save to storage backend
+                    saved_path = storage.save(destination_name, django_file)
+
+                logger.info(f"Saved to storage at: {saved_path}")
+
+                return saved_path
+            finally:
+                # Clean up temp file
+                if temp_path.exists():
+                    temp_path.unlink()
+
+    def should_skip_download(self) -> bool:
+        """
+        Determine if download can be skipped.
+
+        When storage backend is S3 and uses the same bucket as MediaConvert output,
+        the transcoded file is already in its final location, so no download needed.
+
+        Uses duck typing to detect S3 storage by checking for S3-specific attributes
+        rather than relying on class naming conventions.
+
+        Returns:
+            bool: True if download can be skipped, False otherwise
+        """
+        # Check if storage has S3-specific attributes
+        has_bucket_attr = hasattr(default_storage, "bucket_name")
+        has_bucket_method = hasattr(default_storage, "bucket")
+
+        if not (has_bucket_attr or has_bucket_method):
+            logger.debug(
+                f"Storage backend ({default_storage.__class__.__name__}) does not have S3 bucket attributes, download required"
+            )
+            return False
+
+        # Get bucket name from storage
+        storage_bucket = None
+        if has_bucket_attr:
+            storage_bucket = default_storage.bucket_name
+        elif has_bucket_method:
+            # Some implementations use bucket() method
+            bucket = default_storage.bucket()
+            storage_bucket = getattr(bucket, "name", None)
+
+        # Fallback to settings if we can't get it from storage
+        if not storage_bucket:
+            storage_bucket = getattr(settings, "AWS_STORAGE_BUCKET_NAME", None)
+
+        if not storage_bucket:
+            logger.debug("Cannot determine storage bucket name")
+            return False
+
+        # Check if using same bucket
+        if storage_bucket == AWS_MEDIACONVERT_STORAGE_BUCKET_NAME:
+            logger.info(
+                f"Storage uses same S3 bucket ({storage_bucket}), skipping download"
+            )
+            return True
+
+        logger.debug(
+            f"Different S3 buckets (storage: {storage_bucket}, "
+            f"mediaconvert: {AWS_MEDIACONVERT_STORAGE_BUCKET_NAME}), download required"
+        )
+        return False
 
 
 class MediaConvertJobSettings:
