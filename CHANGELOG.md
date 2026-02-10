@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+- Support for Wagtail 7.2
+- Support for Python 3.14
+
+## [0.17.2] - 2025-10-18
+
+### Fixed
+
+- Uploads in the media chooser with Wagtail 7.1
+
 ## [0.17.1] - 2025-09-01
 
 ### Fixed
@@ -346,6 +355,7 @@ Initial release
 ---
 
 [unreleased]: https://github.com/torchbox/wagtailmedia/compare/v0.16.0...HEAD
+[0.17.2]: https://github.com/torchbox/wagtailmedia/compare/v0.17.1...v0.17.2
 [0.17.1]: https://github.com/torchbox/wagtailmedia/compare/v0.17.0...v0.17.1
 [0.17.0]: https://github.com/torchbox/wagtailmedia/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/torchbox/wagtailmedia/compare/v0.15.2...v0.16.0
